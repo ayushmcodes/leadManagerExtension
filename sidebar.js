@@ -21,13 +21,24 @@ class LeadGeneratorSidebar {
             errorText: document.getElementById('errorText'),
             nameInput: document.getElementById('nameInput'),
             companyInput: document.getElementById('companyInput'),
-            emailDomainInput: document.getElementById('emailDomainInput')
+            emailDomainInput: document.getElementById('emailDomainInput'),
+            emailSuggestions: document.getElementById('emailSuggestions'),
+            emailList: document.getElementById('emailList')
         };
     }
 
     setupEventListeners() {
         this.elements.scanButton.addEventListener('click', () => {
             this.scanProfile();
+        });
+
+        // Listen for name and email domain input changes to generate email suggestions
+        this.elements.nameInput.addEventListener('input', () => {
+            this.generateEmailSuggestions();
+        });
+
+        this.elements.emailDomainInput.addEventListener('input', () => {
+            this.generateEmailSuggestions();
         });
 
         // Listen for tab changes
@@ -144,6 +155,112 @@ class LeadGeneratorSidebar {
 
     hideProfileCard() {
         this.elements.profileCard.style.display = 'none';
+    }
+
+    generateEmailSuggestions() {
+        const name = this.elements.nameInput.value.trim();
+        const domain = this.elements.emailDomainInput.value.trim();
+
+        // Hide suggestions if either field is empty
+        if (!name || !domain) {
+            this.elements.emailSuggestions.style.display = 'none';
+            return;
+        }
+
+        // Parse the name into first and last names
+        const nameParts = name.split(/\s+/).filter(part => part.length > 0);
+        if (nameParts.length < 2) {
+            // Need at least first and last name
+            this.elements.emailSuggestions.style.display = 'none';
+            return;
+        }
+
+        const firstName = nameParts[0].toLowerCase();
+        const lastName = nameParts[nameParts.length - 1].toLowerCase();
+
+        // Clean the domain (remove @ if present, trim spaces)
+        const cleanDomain = domain.replace('@', '').trim();
+        
+        if (!cleanDomain) {
+            this.elements.emailSuggestions.style.display = 'none';
+            return;
+        }
+
+        // Generate the three email formats
+        const emailFormats = [
+            `${firstName}@${cleanDomain}`,
+            `${firstName}.${lastName}@${cleanDomain}`,
+            `${firstName}${lastName}@${cleanDomain}`
+        ];
+
+        // Update the UI
+        this.displayEmailSuggestions(emailFormats);
+    }
+
+    displayEmailSuggestions(emails) {
+        // Clear existing suggestions
+        this.elements.emailList.innerHTML = '';
+
+        // Create email suggestion elements
+        emails.forEach((email, index) => {
+            const emailItem = document.createElement('div');
+            emailItem.className = 'email-item';
+            
+            const emailText = document.createElement('span');
+            emailText.className = 'email-text';
+            emailText.textContent = email;
+            
+            const copyButton = document.createElement('button');
+            copyButton.className = 'copy-button';
+            copyButton.innerHTML = '📋';
+            copyButton.title = 'Copy to clipboard';
+            copyButton.addEventListener('click', () => {
+                this.copyToClipboard(email, copyButton);
+            });
+
+            emailItem.appendChild(emailText);
+            emailItem.appendChild(copyButton);
+            this.elements.emailList.appendChild(emailItem);
+        });
+
+        // Show the suggestions section
+        this.elements.emailSuggestions.style.display = 'block';
+    }
+
+    async copyToClipboard(text, button) {
+        try {
+            await navigator.clipboard.writeText(text);
+            
+            // Visual feedback
+            const originalText = button.innerHTML;
+            button.innerHTML = '✅';
+            button.style.backgroundColor = '#28a745';
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.style.backgroundColor = '';
+            }, 1000);
+        } catch (err) {
+            console.error('Failed to copy to clipboard:', err);
+            
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            // Visual feedback
+            const originalText = button.innerHTML;
+            button.innerHTML = '✅';
+            button.style.backgroundColor = '#28a745';
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.style.backgroundColor = '';
+            }, 1000);
+        }
     }
 
     // Form data utility methods
