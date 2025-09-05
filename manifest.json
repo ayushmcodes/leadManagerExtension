@@ -11,7 +11,8 @@
   ],
   
   "host_permissions": [
-    "*://www.linkedin.com/*"
+    "*://www.linkedin.com/*",
+    "*://api.neverbounce.com/*"
   ],
   
   "background": {

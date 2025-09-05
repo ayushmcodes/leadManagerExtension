@@ -265,6 +265,7 @@ body {
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     transition: all 0.2s;
+    gap: 12px;
 }
 
 .email-item:hover {
@@ -279,6 +280,83 @@ body {
     font-weight: 500;
     flex: 1;
     word-break: break-all;
+}
+
+.verification-status {
+    font-size: 16px;
+    min-width: 20px;
+    text-align: center;
+    cursor: help;
+}
+
+.verification-status.loading {
+    animation: spin 1s linear infinite;
+}
+
+.verification-status.valid {
+    color: #28a745;
+}
+
+.verification-status.invalid {
+    color: #dc3545;
+}
+
+.verification-status.disposable {
+    color: #fd7e14;
+}
+
+.verification-status.catchall {
+    color: #6f42c1;
+}
+
+.verification-status.unknown {
+    color: #6c757d;
+}
+
+.verification-status.error {
+    color: #dc3545;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.button-container {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.verify-button {
+    padding: 6px 8px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 32px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.verify-button:hover {
+    background: #218838;
+    transform: scale(1.05);
+}
+
+.verify-button:active {
+    transform: scale(0.95);
+}
+
+.verify-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .copy-button {
@@ -304,6 +382,44 @@ body {
 
 .copy-button:active {
     transform: scale(0.95);
+}
+
+.verify-all-container {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.verify-all-button {
+    width: 100%;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.verify-all-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.verify-all-button:active {
+    transform: translateY(0);
+}
+
+.verify-all-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
 /* Footer */

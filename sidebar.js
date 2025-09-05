@@ -205,10 +205,27 @@ class LeadGeneratorSidebar {
         emails.forEach((email, index) => {
             const emailItem = document.createElement('div');
             emailItem.className = 'email-item';
+            emailItem.setAttribute('data-email', email);
             
             const emailText = document.createElement('span');
             emailText.className = 'email-text';
             emailText.textContent = email;
+            
+            const statusIndicator = document.createElement('span');
+            statusIndicator.className = 'verification-status';
+            statusIndicator.innerHTML = '❓';
+            statusIndicator.title = 'Not verified';
+            
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'button-container';
+            
+            const verifyButton = document.createElement('button');
+            verifyButton.className = 'verify-button';
+            verifyButton.innerHTML = '✓';
+            verifyButton.title = 'Verify email';
+            verifyButton.addEventListener('click', () => {
+                this.verifyEmail(email, emailItem);
+            });
             
             const copyButton = document.createElement('button');
             copyButton.className = 'copy-button';
@@ -218,10 +235,29 @@ class LeadGeneratorSidebar {
                 this.copyToClipboard(email, copyButton);
             });
 
+            buttonContainer.appendChild(verifyButton);
+            buttonContainer.appendChild(copyButton);
+            
             emailItem.appendChild(emailText);
-            emailItem.appendChild(copyButton);
+            emailItem.appendChild(statusIndicator);
+            emailItem.appendChild(buttonContainer);
             this.elements.emailList.appendChild(emailItem);
         });
+
+        // Add verify all button
+        const verifyAllContainer = document.createElement('div');
+        verifyAllContainer.className = 'verify-all-container';
+        
+        const verifyAllButton = document.createElement('button');
+        verifyAllButton.className = 'verify-all-button';
+        verifyAllButton.innerHTML = '🔍 Verify All Emails';
+        verifyAllButton.title = 'Verify all email addresses';
+        verifyAllButton.addEventListener('click', () => {
+            this.verifyAllEmails(emails);
+        });
+        
+        verifyAllContainer.appendChild(verifyAllButton);
+        this.elements.emailList.appendChild(verifyAllContainer);
 
         // Show the suggestions section
         this.elements.emailSuggestions.style.display = 'block';
@@ -260,6 +296,127 @@ class LeadGeneratorSidebar {
                 button.innerHTML = originalText;
                 button.style.backgroundColor = '';
             }, 1000);
+        }
+    }
+
+    async verifyEmail(email, emailItem) {
+        const statusIndicator = emailItem.querySelector('.verification-status');
+        const verifyButton = emailItem.querySelector('.verify-button');
+        
+        // Set loading state
+        statusIndicator.innerHTML = '⏳';
+        statusIndicator.title = 'Verifying...';
+        statusIndicator.className = 'verification-status loading';
+        verifyButton.disabled = true;
+        
+        try {
+            const result = await this.callNeverBounceAPI(email);
+            this.updateVerificationStatus(statusIndicator, verifyButton, result);
+        } catch (error) {
+            console.error('Email verification failed:', error);
+            statusIndicator.innerHTML = '❌';
+            statusIndicator.title = `Verification failed: ${error.message}`;
+            statusIndicator.className = 'verification-status error';
+            verifyButton.disabled = false;
+        }
+    }
+
+    async verifyAllEmails(emails) {
+        const verifyAllButton = document.querySelector('.verify-all-button');
+        verifyAllButton.disabled = true;
+        verifyAllButton.innerHTML = '⏳ Verifying...';
+        
+        try {
+            // Verify all emails concurrently
+            const verificationPromises = emails.map(email => {
+                const emailItem = document.querySelector(`[data-email="${email}"]`);
+                return this.verifyEmail(email, emailItem);
+            });
+            
+            await Promise.all(verificationPromises);
+            
+            verifyAllButton.innerHTML = '✅ All Verified';
+            setTimeout(() => {
+                verifyAllButton.innerHTML = '🔍 Verify All Emails';
+                verifyAllButton.disabled = false;
+            }, 2000);
+        } catch (error) {
+            console.error('Bulk verification failed:', error);
+            verifyAllButton.innerHTML = '❌ Verification Failed';
+            setTimeout(() => {
+                verifyAllButton.innerHTML = '🔍 Verify All Emails';
+                verifyAllButton.disabled = false;
+            }, 2000);
+        }
+    }
+
+    async callNeverBounceAPI(email) {
+        const API_KEY = 'private_658ac1a2ad10d7c6361d1391903ea93c';
+        const API_URL = 'https://api.neverbounce.com/v4/single/check';
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                key: API_KEY,
+                email: email
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.status !== 'success') {
+            throw new Error(data.message || 'API returned error status');
+        }
+        
+        return data;
+    }
+
+    updateVerificationStatus(statusIndicator, verifyButton, result) {
+        verifyButton.disabled = false;
+        
+        switch (result.result) {
+            case 'valid':
+                statusIndicator.innerHTML = '✅';
+                statusIndicator.title = `Valid email - Execution time: ${result.execution_time}ms`;
+                statusIndicator.className = 'verification-status valid';
+                break;
+            case 'invalid':
+                statusIndicator.innerHTML = '❌';
+                statusIndicator.title = `Invalid email - Execution time: ${result.execution_time}ms`;
+                statusIndicator.className = 'verification-status invalid';
+                break;
+            case 'disposable':
+                statusIndicator.innerHTML = '🗑️';
+                statusIndicator.title = `Disposable email - Execution time: ${result.execution_time}ms`;
+                statusIndicator.className = 'verification-status disposable';
+                break;
+            case 'catchall':
+                statusIndicator.innerHTML = '📧';
+                statusIndicator.title = `Catch-all email - Execution time: ${result.execution_time}ms`;
+                statusIndicator.className = 'verification-status catchall';
+                break;
+            case 'unknown':
+                statusIndicator.innerHTML = '❓';
+                statusIndicator.title = `Unknown status - Execution time: ${result.execution_time}ms`;
+                statusIndicator.className = 'verification-status unknown';
+                break;
+            default:
+                statusIndicator.innerHTML = '❓';
+                statusIndicator.title = `Unexpected result: ${result.result}`;
+                statusIndicator.className = 'verification-status unknown';
+        }
+        
+        // Add flags information to title if available
+        if (result.flags && result.flags.length > 0) {
+            const currentTitle = statusIndicator.title;
+            statusIndicator.title = `${currentTitle}\nFlags: ${result.flags.join(', ')}`;
         }
     }
 
