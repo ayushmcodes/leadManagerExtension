@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn Lead Generator",
+  "version": "1.0",
+  "description": "Extract LinkedIn profile information in a convenient sidebar",
+  
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "*://www.linkedin.com/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["*://www.linkedin.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  
+  "action": {
+    "default_title": "Open LinkedIn Lead Generator"
+  }
+}

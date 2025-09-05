@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Lead Generator</title>
+    <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎯 Name Extractor</h1>
+            <p class="subtitle">LinkedIn Profile Names</p>
+        </header>
+        
+        <main class="content">
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot"></span>
+                <span id="statusText">Ready to scan</span>
+            </div>
+            
+            <div class="profile-card" id="profileCard" style="display: none;">
+                <div class="name-display">
+                    <div class="name-icon">👤</div>
+                    <h2 id="profileName">-</h2>
+                </div>
+            </div>
+            
+            <button class="scan-button" id="scanButton">
+                <span class="button-icon">🔍</span>
+                Get Name
+            </button>
+            
+            <div class="error-message" id="errorMessage" style="display: none;">
+                <span class="error-icon">⚠️</span>
+                <span id="errorText"></span>
+            </div>
+        </main>
+        
+        <footer class="footer">
+            <p>Navigate to a LinkedIn profile to extract the name</p>
+        </footer>
+    </div>
+    
+    <script src="sidebar.js"></script>
+</body>
+</html>
