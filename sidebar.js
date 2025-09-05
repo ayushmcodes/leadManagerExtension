@@ -8,6 +8,7 @@ class LeadGeneratorSidebar {
         this.initializeElements();
         this.setupEventListeners();
         this.checkCurrentTab();
+        this.initializeCache();
     }
 
     initializeElements() {
@@ -305,13 +306,28 @@ class LeadGeneratorSidebar {
         
         // Set loading state
         statusIndicator.innerHTML = '⏳';
-        statusIndicator.title = 'Verifying...';
+        statusIndicator.title = 'Checking...';
         statusIndicator.className = 'verification-status loading';
         verifyButton.disabled = true;
         
         try {
+            // First, check cache
+            const cachedResult = await this.getCachedVerification(email);
+            
+            if (cachedResult) {
+                console.log('Using cached verification result for:', email);
+                this.updateVerificationStatus(statusIndicator, verifyButton, cachedResult, true);
+                return;
+            }
+            
+            // If not in cache, make API call
+            statusIndicator.title = 'Verifying via API...';
             const result = await this.callNeverBounceAPI(email);
-            this.updateVerificationStatus(statusIndicator, verifyButton, result);
+            
+            // Cache the result
+            await this.setCachedVerification(email, result);
+            
+            this.updateVerificationStatus(statusIndicator, verifyButton, result, false);
         } catch (error) {
             console.error('Email verification failed:', error);
             statusIndicator.innerHTML = '❌';
@@ -378,38 +394,41 @@ class LeadGeneratorSidebar {
         return data;
     }
 
-    updateVerificationStatus(statusIndicator, verifyButton, result) {
+    updateVerificationStatus(statusIndicator, verifyButton, result, fromCache = false) {
         verifyButton.disabled = false;
+        
+        const cacheIndicator = fromCache ? ' 💾' : '';
+        const sourceText = fromCache ? 'from cache' : `API - ${result.execution_time}ms`;
         
         switch (result.result) {
             case 'valid':
-                statusIndicator.innerHTML = '✅';
-                statusIndicator.title = `Valid email - Execution time: ${result.execution_time}ms`;
+                statusIndicator.innerHTML = `✅${cacheIndicator}`;
+                statusIndicator.title = `Valid email (${sourceText})`;
                 statusIndicator.className = 'verification-status valid';
                 break;
             case 'invalid':
-                statusIndicator.innerHTML = '❌';
-                statusIndicator.title = `Invalid email - Execution time: ${result.execution_time}ms`;
+                statusIndicator.innerHTML = `❌${cacheIndicator}`;
+                statusIndicator.title = `Invalid email (${sourceText})`;
                 statusIndicator.className = 'verification-status invalid';
                 break;
             case 'disposable':
-                statusIndicator.innerHTML = '🗑️';
-                statusIndicator.title = `Disposable email - Execution time: ${result.execution_time}ms`;
+                statusIndicator.innerHTML = `🗑️${cacheIndicator}`;
+                statusIndicator.title = `Disposable email (${sourceText})`;
                 statusIndicator.className = 'verification-status disposable';
                 break;
             case 'catchall':
-                statusIndicator.innerHTML = '📧';
-                statusIndicator.title = `Catch-all email - Execution time: ${result.execution_time}ms`;
+                statusIndicator.innerHTML = `📧${cacheIndicator}`;
+                statusIndicator.title = `Catch-all email (${sourceText})`;
                 statusIndicator.className = 'verification-status catchall';
                 break;
             case 'unknown':
-                statusIndicator.innerHTML = '❓';
-                statusIndicator.title = `Unknown status - Execution time: ${result.execution_time}ms`;
+                statusIndicator.innerHTML = `❓${cacheIndicator}`;
+                statusIndicator.title = `Unknown status (${sourceText})`;
                 statusIndicator.className = 'verification-status unknown';
                 break;
             default:
-                statusIndicator.innerHTML = '❓';
-                statusIndicator.title = `Unexpected result: ${result.result}`;
+                statusIndicator.innerHTML = `❓${cacheIndicator}`;
+                statusIndicator.title = `Unexpected result: ${result.result} (${sourceText})`;
                 statusIndicator.className = 'verification-status unknown';
         }
         
@@ -417,6 +436,120 @@ class LeadGeneratorSidebar {
         if (result.flags && result.flags.length > 0) {
             const currentTitle = statusIndicator.title;
             statusIndicator.title = `${currentTitle}\nFlags: ${result.flags.join(', ')}`;
+        }
+    }
+
+    // Email verification cache management
+    async getCachedVerification(email) {
+        try {
+            const cacheKey = `email_verification_${email.toLowerCase()}`;
+            const result = await chrome.storage.local.get(cacheKey);
+            
+            if (result[cacheKey]) {
+                const cachedData = result[cacheKey];
+                const now = Date.now();
+                const cacheAge = now - cachedData.timestamp;
+                
+                console.log(`Cache hit for ${email} (cached ${Math.round(cacheAge / 1000 / 60)} minutes ago)`);
+                return cachedData.verification;
+            }
+            
+            console.log(`Cache miss for ${email}`);
+            return null;
+        } catch (error) {
+            console.error('Error reading from cache:', error);
+            return null;
+        }
+    }
+
+    async setCachedVerification(email, verificationResult) {
+        try {
+            const cacheKey = `email_verification_${email.toLowerCase()}`;
+            const cacheData = {
+                email: email.toLowerCase(),
+                verification: verificationResult,
+                timestamp: Date.now()
+            };
+            
+            await chrome.storage.local.set({ [cacheKey]: cacheData });
+            console.log(`Cached verification result for ${email}`);
+        } catch (error) {
+            console.error('Error saving to cache:', error);
+        }
+    }
+
+    async removeCachedVerification(email) {
+        try {
+            const cacheKey = `email_verification_${email.toLowerCase()}`;
+            await chrome.storage.local.remove(cacheKey);
+            console.log(`Removed cached verification for ${email}`);
+        } catch (error) {
+            console.error('Error removing from cache:', error);
+        }
+    }
+
+    async cleanupExpiredCache() {
+        // No longer needed - cache entries are stored permanently
+        console.log('Cache cleanup disabled - entries are stored permanently');
+    }
+
+    async getCacheStats() {
+        try {
+            const allStorage = await chrome.storage.local.get();
+            const verificationKeys = Object.keys(allStorage).filter(key => 
+                key.startsWith('email_verification_')
+            );
+            
+            const stats = {
+                totalEntries: verificationKeys.length,
+                newestEntry: 0,
+                oldestEntry: Date.now()
+            };
+            
+            for (const key of verificationKeys) {
+                const timestamp = allStorage[key].timestamp;
+                if (timestamp > stats.newestEntry) stats.newestEntry = timestamp;
+                if (timestamp < stats.oldestEntry) stats.oldestEntry = timestamp;
+            }
+            
+            return stats;
+        } catch (error) {
+            console.error('Error getting cache stats:', error);
+            return { totalEntries: 0, newestEntry: 0, oldestEntry: 0 };
+        }
+    }
+
+    async initializeCache() {
+        try {
+            const stats = await this.getCacheStats();
+            console.log(`📊 Email Verification Cache Stats (Permanent Storage):`, {
+                'Total cached emails': stats.totalEntries,
+                'Newest entry': stats.newestEntry ? new Date(stats.newestEntry).toLocaleString() : 'None',
+                'Oldest entry': stats.oldestEntry < Date.now() ? new Date(stats.oldestEntry).toLocaleString() : 'None'
+            });
+        } catch (error) {
+            console.error('Error initializing cache:', error);
+        }
+    }
+
+    async clearAllCache() {
+        try {
+            const allStorage = await chrome.storage.local.get();
+            const verificationKeys = Object.keys(allStorage).filter(key => 
+                key.startsWith('email_verification_')
+            );
+            
+            if (verificationKeys.length > 0) {
+                await chrome.storage.local.remove(verificationKeys);
+                console.log(`🗑️ Cleared ${verificationKeys.length} cached verification entries`);
+                return verificationKeys.length;
+            } else {
+                console.log('No cache entries to clear');
+                return 0;
+            }
+        } catch (error) {
+            console.error('Error clearing cache:', error);
+            return 0;
         }
     }
 
@@ -460,15 +593,38 @@ class LeadGeneratorSidebar {
 }
 
 // Initialize the sidebar when DOM is loaded
+let leadGeneratorSidebar;
+
 document.addEventListener('DOMContentLoaded', () => {
-    new LeadGeneratorSidebar();
+    leadGeneratorSidebar = new LeadGeneratorSidebar();
+    
+    // Expose cache management functions to the global scope for debugging
+    window.leadGeneratorDebug = {
+        getCacheStats: () => leadGeneratorSidebar.getCacheStats(),
+        clearCache: () => leadGeneratorSidebar.clearAllCache(),
+        removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email)
+    };
 });
 
 // Also initialize immediately if DOM is already loaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        new LeadGeneratorSidebar();
+        leadGeneratorSidebar = new LeadGeneratorSidebar();
+        
+        // Expose cache management functions to the global scope for debugging
+        window.leadGeneratorDebug = {
+            getCacheStats: () => leadGeneratorSidebar.getCacheStats(),
+            clearCache: () => leadGeneratorSidebar.clearAllCache(),
+            removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email)
+        };
     });
 } else {
-    new LeadGeneratorSidebar();
+    leadGeneratorSidebar = new LeadGeneratorSidebar();
+    
+    // Expose cache management functions to the global scope for debugging
+    window.leadGeneratorDebug = {
+        getCacheStats: () => leadGeneratorSidebar.getCacheStats(),
+        clearCache: () => leadGeneratorSidebar.clearAllCache(),
+        removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email)
+    };
 }
