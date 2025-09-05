@@ -9,14 +9,41 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>🎯 Name Extractor</h1>
-            <p class="subtitle">LinkedIn Profile Names</p>
+            <h1>🎯 Lead Generator</h1>
+            <p class="subtitle">Capture Lead Information</p>
         </header>
         
         <main class="content">
             <div class="status-indicator" id="statusIndicator">
                 <span class="status-dot"></span>
                 <span id="statusText">Ready to scan</span>
+            </div>
+            
+            <div class="input-form">
+                <h3 class="form-title">💼 Lead Information</h3>
+                <div class="input-group">
+                    <label for="nameInput" class="input-label">
+                        <span class="label-icon">👤</span>
+                        Name
+                    </label>
+                    <input type="text" id="nameInput" class="form-input" placeholder="Enter full name">
+                </div>
+                
+                <div class="input-group">
+                    <label for="companyInput" class="input-label">
+                        <span class="label-icon">🏢</span>
+                        Company Name
+                    </label>
+                    <input type="text" id="companyInput" class="form-input" placeholder="Enter company name">
+                </div>
+                
+                <div class="input-group">
+                    <label for="emailDomainInput" class="input-label">
+                        <span class="label-icon">📧</span>
+                        Email Domain
+                    </label>
+                    <input type="text" id="emailDomainInput" class="form-input" placeholder="@company.com">
+                </div>
             </div>
             
             <div class="profile-card" id="profileCard" style="display: none;">
@@ -28,7 +55,7 @@
             
             <button class="scan-button" id="scanButton">
                 <span class="button-icon">🔍</span>
-                Get Name
+                Auto-fill from LinkedIn
             </button>
             
             <div class="error-message" id="errorMessage" style="display: none;">
@@ -38,7 +65,7 @@
         </main>
         
         <footer class="footer">
-            <p>Navigate to a LinkedIn profile to extract the name</p>
+            <p>Enter lead information manually or auto-fill from LinkedIn profiles</p>
         </footer>
     </div>
     

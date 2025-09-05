@@ -18,7 +18,10 @@ class LeadGeneratorSidebar {
             profileName: document.getElementById('profileName'),
             scanButton: document.getElementById('scanButton'),
             errorMessage: document.getElementById('errorMessage'),
-            errorText: document.getElementById('errorText')
+            errorText: document.getElementById('errorText'),
+            nameInput: document.getElementById('nameInput'),
+            companyInput: document.getElementById('companyInput'),
+            emailDomainInput: document.getElementById('emailDomainInput')
         };
     }
 
@@ -101,6 +104,11 @@ class LeadGeneratorSidebar {
         // Update profile name
         this.elements.profileName.textContent = data.name || 'Name not found';
 
+        // Auto-fill the name input field
+        if (data.name) {
+            this.elements.nameInput.value = data.name;
+        }
+
         // Show profile card with animation
         this.elements.profileCard.style.display = 'block';
         this.elements.profileCard.classList.add('fade-in');
@@ -136,6 +144,44 @@ class LeadGeneratorSidebar {
 
     hideProfileCard() {
         this.elements.profileCard.style.display = 'none';
+    }
+
+    // Form data utility methods
+    getFormData() {
+        return {
+            name: this.elements.nameInput.value.trim(),
+            company: this.elements.companyInput.value.trim(),
+            emailDomain: this.elements.emailDomainInput.value.trim()
+        };
+    }
+
+    setFormData(data) {
+        if (data.name) this.elements.nameInput.value = data.name;
+        if (data.company) this.elements.companyInput.value = data.company;
+        if (data.emailDomain) this.elements.emailDomainInput.value = data.emailDomain;
+    }
+
+    clearForm() {
+        this.elements.nameInput.value = '';
+        this.elements.companyInput.value = '';
+        this.elements.emailDomainInput.value = '';
+    }
+
+    validateForm() {
+        const data = this.getFormData();
+        const errors = [];
+
+        if (!data.name) errors.push('Name is required');
+        if (!data.company) errors.push('Company name is required');
+        if (data.emailDomain && !data.emailDomain.includes('@')) {
+            errors.push('Email domain should include @ (e.g., @company.com)');
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors: errors,
+            data: data
+        };
     }
 }
 
