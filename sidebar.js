@@ -160,7 +160,9 @@ class LeadGeneratorSidebar {
     }
 
     generateEmailSuggestions() {
+        console.log("generateEmailSuggestions")
         const name = this.elements.nameInput.value.trim();
+        const companyName = this.elements.companyInput.value.trim();
         const domain = this.elements.emailDomainInput.value.trim();
 
         // Hide suggestions if either field is empty
@@ -195,11 +197,26 @@ class LeadGeneratorSidebar {
             `${firstName}${lastName}@${cleanDomain}`
         ];
 
+        const leadData = {
+            firstName: firstName,
+            lastName: lastName,
+            companyName: companyName,
+            domain: cleanDomain,
+            possibleEmails: emailFormats
+        }
+
+        console.log("leadData")
+        console.log(leadData)
+
         // Update the UI
-        this.displayEmailSuggestions(emailFormats);
+        this.displayEmailSuggestions(leadData);
     }
 
-    displayEmailSuggestions(emails) {
+    displayEmailSuggestions(leadData) {
+        console.log("insidedisplayEmailSuggestions")
+        var emails = leadData.possibleEmails;
+        console.log("emails")
+        console.log(emails)
         // Clear existing suggestions
         this.elements.emailList.innerHTML = '';
 
@@ -226,7 +243,7 @@ class LeadGeneratorSidebar {
             verifyButton.innerHTML = '✓';
             verifyButton.title = 'Verify email';
             verifyButton.addEventListener('click', () => {
-                this.verifyEmail(email, emailItem);
+                this.verifyEmail(email, emailItem,leadData);
             });
             
             const copyButton = document.createElement('button');
@@ -255,7 +272,7 @@ class LeadGeneratorSidebar {
         verifyAllButton.innerHTML = '🔍 Verify All Emails';
         verifyAllButton.title = 'Verify all email addresses';
         verifyAllButton.addEventListener('click', () => {
-            this.verifyAllEmails(emails);
+            this.verifyAllEmails(emails,leadData);
         });
         
         verifyAllContainer.appendChild(verifyAllButton);
@@ -301,7 +318,7 @@ class LeadGeneratorSidebar {
         }
     }
 
-    async verifyEmail(email, emailItem) {
+    async verifyEmail(email, emailItem,leadData) {
         const statusIndicator = emailItem.querySelector('.verification-status');
         const verifyButton = emailItem.querySelector('.verify-button');
         
@@ -317,16 +334,29 @@ class LeadGeneratorSidebar {
             
             if (cachedResult) {
                 console.log('Using cached verification result for:', email);
-                this.updateVerificationStatus(statusIndicator, verifyButton, cachedResult, true);
+                const result={
+                    result: cachedResult.emailStatus
+                }
+                this.updateVerificationStatus(statusIndicator, verifyButton, result, true);
                 return;
             }
             
             // If not in cache, make API call
             statusIndicator.title = 'Verifying via API...';
-            const result = await this.callNeverBounceAPI(email);
             
+            var dataToBeStoredInCache={
+                firstName:leadData.firstName,
+                lastName:leadData.lastName,
+                companyName:leadData.companyName,
+                domain:leadData.domain,
+                email:email
+            }
+            const result = await this.callNeverBounceAPI(email);
+            dataToBeStoredInCache.emailStatus=result.result;
+            console.log("dataToBeStoredInCache")
+            console.log(dataToBeStoredInCache)
             // Cache the result
-            await this.setCachedVerification(email, result);
+            await this.setCachedVerification(email, dataToBeStoredInCache);
             
             this.updateVerificationStatus(statusIndicator, verifyButton, result, false);
         } catch (error) {
@@ -338,7 +368,7 @@ class LeadGeneratorSidebar {
         }
     }
 
-    async verifyAllEmails(emails) {
+    async verifyAllEmails(emails,leadData) {
         const verifyAllButton = document.querySelector('.verify-all-button');
         verifyAllButton.disabled = true;
         verifyAllButton.innerHTML = '⏳ Verifying...';
@@ -347,7 +377,7 @@ class LeadGeneratorSidebar {
             // Verify all emails concurrently
             const verificationPromises = emails.map(email => {
                 const emailItem = document.querySelector(`[data-email="${email}"]`);
-                return this.verifyEmail(email, emailItem);
+                return this.verifyEmail(email, emailItem,leadData);
             });
             
             await Promise.all(verificationPromises);
@@ -399,7 +429,7 @@ class LeadGeneratorSidebar {
         verifyButton.disabled = false;
         
         const cacheIndicator = fromCache ? ' 💾' : '';
-        const sourceText = fromCache ? 'from cache' : `API - ${result.execution_time}ms`;
+        const sourceText = fromCache ? 'from cache' : 'from API';
         
         switch (result.result) {
             case 'valid':
@@ -431,12 +461,6 @@ class LeadGeneratorSidebar {
                 statusIndicator.innerHTML = `❓${cacheIndicator}`;
                 statusIndicator.title = `Unexpected result: ${result.result} (${sourceText})`;
                 statusIndicator.className = 'verification-status unknown';
-        }
-        
-        // Add flags information to title if available
-        if (result.flags && result.flags.length > 0) {
-            const currentTitle = statusIndicator.title;
-            statusIndicator.title = `${currentTitle}\nFlags: ${result.flags.join(', ')}`;
         }
     }
 

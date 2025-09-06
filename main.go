@@ -25,9 +25,9 @@ type CacheServer struct {
 }
 
 type CachedData struct {
-	Email        string                 `json:"email"`
-	Verification map[string]interface{} `json:"verification"`
-	Timestamp    int64                  `json:"timestamp"`
+	Email     string                 `json:"email"`
+	LeadData  map[string]interface{} `json:"leadData"`
+	Timestamp int64                  `json:"timestamp"`
 }
 
 type CacheResponse struct {
@@ -67,7 +67,7 @@ type ClearResponse struct {
 }
 
 const (
-	CACHE_KEY_PREFIX = "email_verification_"
+	CACHE_KEY_PREFIX = "lead_"
 	SERVER_VERSION   = "1.0.0"
 )
 
@@ -237,7 +237,7 @@ func (s *CacheServer) getCachedVerification(c *gin.Context) {
 
 	c.JSON(http.StatusOK, CacheResponse{
 		Success:  true,
-		Data:     cachedData.Verification,
+		Data:     cachedData.LeadData,
 		Cached:   true,
 		CacheAge: cacheAge,
 	})
@@ -253,8 +253,8 @@ func (s *CacheServer) setCachedVerification(c *gin.Context) {
 		return
 	}
 
-	var verificationResult map[string]interface{}
-	if err := c.ShouldBindJSON(&verificationResult); err != nil {
+	var leadData map[string]interface{}
+	if err := c.ShouldBindJSON(&leadData); err != nil {
 		log.Printf("Invalid JSON for %s: %v", email, err)
 		c.JSON(http.StatusBadRequest, CacheResponse{
 			Success: false,
@@ -265,9 +265,9 @@ func (s *CacheServer) setCachedVerification(c *gin.Context) {
 
 	cacheKey := CACHE_KEY_PREFIX + email
 	cacheData := CachedData{
-		Email:        email,
-		Verification: verificationResult,
-		Timestamp:    time.Now().UnixMilli(),
+		Email:     email,
+		LeadData:  leadData,
+		Timestamp: time.Now().UnixMilli(),
 	}
 
 	dataJSON, err := json.Marshal(cacheData)
