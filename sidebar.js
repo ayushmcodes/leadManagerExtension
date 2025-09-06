@@ -183,7 +183,7 @@ class LeadGeneratorSidebar {
         const lastName = nameParts[nameParts.length - 1].toLowerCase();
 
         // Clean the domain (remove @ if present, trim spaces)
-        const cleanDomain = domain.replace('@', '').trim();
+        const cleanDomain = domain.replace('@', '').trim().toLowerCase();
         
         if (!cleanDomain) {
             this.elements.emailSuggestions.style.display = 'none';
