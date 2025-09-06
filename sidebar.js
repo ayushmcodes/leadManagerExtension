@@ -4,6 +4,7 @@ class LeadGeneratorSidebar {
         this.elements = {};
         this.currentTabId = null;
         this.isScanning = false;
+        this.cacheServerUrl = 'http://localhost:3001'; // Go Redis Cache Server
         
         this.initializeElements();
         this.setupEventListeners();
@@ -439,52 +440,86 @@ class LeadGeneratorSidebar {
         }
     }
 
-    // Email verification cache management
+    // Email verification cache management via Go Redis server
     async getCachedVerification(email) {
         try {
-            const cacheKey = `email_verification_${email.toLowerCase()}`;
-            const result = await chrome.storage.local.get(cacheKey);
+            const response = await fetch(`${this.cacheServerUrl}/cache/${encodeURIComponent(email.toLowerCase())}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
             
-            if (result[cacheKey]) {
-                const cachedData = result[cacheKey];
-                const now = Date.now();
-                const cacheAge = now - cachedData.timestamp;
-                
-                console.log(`Cache hit for ${email} (cached ${Math.round(cacheAge / 1000 / 60)} minutes ago)`);
-                return cachedData.verification;
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            console.log(`Cache miss for ${email}`);
+            const result = await response.json();
+            
+            if (result.success && result.cached && result.data) {
+                console.log(`✅ Redis cache hit for ${email} (cached ${Math.round(result.cacheAge / 1000 / 60)} minutes ago)`);
+                return result.data;
+            }
+            
+            console.log(`❌ Redis cache miss for ${email}`);
             return null;
         } catch (error) {
-            console.error('Error reading from cache:', error);
-            return null;
+            console.error('❌ Error reading from Go cache server:', error);
+            // Fallback to Chrome storage if Go server is unavailable
+            return await this.getCachedVerificationFallback(email);
         }
     }
 
     async setCachedVerification(email, verificationResult) {
         try {
-            const cacheKey = `email_verification_${email.toLowerCase()}`;
-            const cacheData = {
-                email: email.toLowerCase(),
-                verification: verificationResult,
-                timestamp: Date.now()
-            };
+            const response = await fetch(`${this.cacheServerUrl}/cache/${encodeURIComponent(email.toLowerCase())}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(verificationResult)
+            });
             
-            await chrome.storage.local.set({ [cacheKey]: cacheData });
-            console.log(`Cached verification result for ${email}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Cached verification result for ${email} in Go Redis server`);
+            } else {
+                console.error('❌ Failed to cache verification result:', result.error);
+            }
         } catch (error) {
-            console.error('Error saving to cache:', error);
+            console.error('❌ Error saving to Go cache server:', error);
+            // Fallback to Chrome storage if Go server is unavailable
+            await this.setCachedVerificationFallback(email, verificationResult);
         }
     }
 
     async removeCachedVerification(email) {
         try {
-            const cacheKey = `email_verification_${email.toLowerCase()}`;
-            await chrome.storage.local.remove(cacheKey);
-            console.log(`Removed cached verification for ${email}`);
+            const response = await fetch(`${this.cacheServerUrl}/cache/${encodeURIComponent(email.toLowerCase())}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Removed cached verification for ${email} from Go Redis server`);
+            }
         } catch (error) {
-            console.error('Error removing from cache:', error);
+            console.error('❌ Error removing from Go cache server:', error);
+            // Fallback to Chrome storage if Go server is unavailable
+            await this.removeCachedVerificationFallback(email);
         }
     }
 
@@ -494,6 +529,140 @@ class LeadGeneratorSidebar {
     }
 
     async getCacheStats() {
+        try {
+            const response = await fetch(`${this.cacheServerUrl}/stats`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                return {
+                    totalEntries: result.stats.totalEntries,
+                    newestEntry: result.stats.newestEntry,
+                    oldestEntry: result.stats.oldestEntry
+                };
+            }
+            
+            return { totalEntries: 0, newestEntry: 0, oldestEntry: 0 };
+        } catch (error) {
+            console.error('❌ Error getting cache stats from Go server:', error);
+            // Fallback to Chrome storage if Go server is unavailable
+            return await this.getCacheStatsFallback();
+        }
+    }
+
+    async initializeCache() {
+        try {
+            // Check if Go cache server is available
+            const healthResponse = await fetch(`${this.cacheServerUrl}/health`);
+            
+            if (healthResponse.ok) {
+                const health = await healthResponse.json();
+                console.log('✅ Go Redis cache server is connected:', health);
+                
+                const stats = await this.getCacheStats();
+                console.log(`📊 Email Verification Cache Stats (Redis via Go):`, {
+                    'Total cached emails': stats.totalEntries,
+                    'Newest entry': stats.newestEntry ? new Date(stats.newestEntry).toLocaleString() : 'None',
+                    'Oldest entry': stats.oldestEntry < Date.now() ? new Date(stats.oldestEntry).toLocaleString() : 'None'
+                });
+            } else {
+                console.warn('⚠️ Go cache server not available, falling back to Chrome storage');
+                await this.initializeCacheFallback();
+            }
+        } catch (error) {
+            console.error('❌ Error connecting to Go cache server:', error);
+            console.warn('⚠️ Falling back to Chrome storage mode');
+            await this.initializeCacheFallback();
+        }
+    }
+
+    async clearAllCache() {
+        try {
+            const response = await fetch(`${this.cacheServerUrl}/cache`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Cleared ${result.deletedCount} cached verification entries from Go Redis server`);
+                return result.deletedCount;
+            }
+            
+            return 0;
+        } catch (error) {
+            console.error('❌ Error clearing cache from Go server:', error);
+            // Fallback to Chrome storage if Go server is unavailable
+            return await this.clearAllCacheFallback();
+        }
+    }
+
+    // Fallback methods for Chrome storage (when Go server is unavailable)
+    async getCachedVerificationFallback(email) {
+        try {
+            const cacheKey = `email_verification_${email.toLowerCase()}`;
+            const result = await chrome.storage.local.get(cacheKey);
+            
+            if (result[cacheKey]) {
+                const cachedData = result[cacheKey];
+                const now = Date.now();
+                const cacheAge = now - cachedData.timestamp;
+                
+                console.log(`📦 Chrome storage cache hit for ${email} (cached ${Math.round(cacheAge / 1000 / 60)} minutes ago)`);
+                return cachedData.verification;
+            }
+            
+            console.log(`📦 Chrome storage cache miss for ${email}`);
+            return null;
+        } catch (error) {
+            console.error('❌ Error reading from Chrome storage:', error);
+            return null;
+        }
+    }
+
+    async setCachedVerificationFallback(email, verificationResult) {
+        try {
+            const cacheKey = `email_verification_${email.toLowerCase()}`;
+            const cacheData = {
+                email: email.toLowerCase(),
+                verification: verificationResult,
+                timestamp: Date.now()
+            };
+            
+            await chrome.storage.local.set({ [cacheKey]: cacheData });
+            console.log(`📦 Cached verification result for ${email} in Chrome storage`);
+        } catch (error) {
+            console.error('❌ Error saving to Chrome storage:', error);
+        }
+    }
+
+    async removeCachedVerificationFallback(email) {
+        try {
+            const cacheKey = `email_verification_${email.toLowerCase()}`;
+            await chrome.storage.local.remove(cacheKey);
+            console.log(`📦 Removed cached verification for ${email} from Chrome storage`);
+        } catch (error) {
+            console.error('❌ Error removing from Chrome storage:', error);
+        }
+    }
+
+    async getCacheStatsFallback() {
         try {
             const allStorage = await chrome.storage.local.get();
             const verificationKeys = Object.keys(allStorage).filter(key => 
@@ -514,25 +683,25 @@ class LeadGeneratorSidebar {
             
             return stats;
         } catch (error) {
-            console.error('Error getting cache stats:', error);
+            console.error('❌ Error getting Chrome storage stats:', error);
             return { totalEntries: 0, newestEntry: 0, oldestEntry: 0 };
         }
     }
 
-    async initializeCache() {
+    async initializeCacheFallback() {
         try {
-            const stats = await this.getCacheStats();
-            console.log(`📊 Email Verification Cache Stats (Permanent Storage):`, {
+            const stats = await this.getCacheStatsFallback();
+            console.log(`📦 Email Verification Cache Stats (Chrome Storage):`, {
                 'Total cached emails': stats.totalEntries,
                 'Newest entry': stats.newestEntry ? new Date(stats.newestEntry).toLocaleString() : 'None',
                 'Oldest entry': stats.oldestEntry < Date.now() ? new Date(stats.oldestEntry).toLocaleString() : 'None'
             });
         } catch (error) {
-            console.error('Error initializing cache:', error);
+            console.error('❌ Error initializing Chrome storage cache:', error);
         }
     }
 
-    async clearAllCache() {
+    async clearAllCacheFallback() {
         try {
             const allStorage = await chrome.storage.local.get();
             const verificationKeys = Object.keys(allStorage).filter(key => 
@@ -541,14 +710,14 @@ class LeadGeneratorSidebar {
             
             if (verificationKeys.length > 0) {
                 await chrome.storage.local.remove(verificationKeys);
-                console.log(`🗑️ Cleared ${verificationKeys.length} cached verification entries`);
+                console.log(`📦 Cleared ${verificationKeys.length} cached verification entries from Chrome storage`);
                 return verificationKeys.length;
             } else {
-                console.log('No cache entries to clear');
+                console.log('📦 No cache entries to clear in Chrome storage');
                 return 0;
             }
         } catch (error) {
-            console.error('Error clearing cache:', error);
+            console.error('❌ Error clearing Chrome storage cache:', error);
             return 0;
         }
     }
@@ -628,3 +797,4 @@ if (document.readyState === 'loading') {
         removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email)
     };
 }
+

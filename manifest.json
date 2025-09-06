@@ -13,7 +13,8 @@
   
   "host_permissions": [
     "*://www.linkedin.com/*",
-    "*://api.neverbounce.com/*"
+    "*://api.neverbounce.com/*",
+    "http://localhost:3001/*"
   ],
   
   "background": {
