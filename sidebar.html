@@ -3,14 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LinkedIn Lead Generator</title>
+    <title>devXworks Lead Generator</title>
     <link rel="stylesheet" href="sidebar.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <h1>🎯 Lead Generator</h1>
-            <p class="subtitle">Capture Lead Information</p>
+            <div class="brand-container">
+                <div class="logo-container">
+                    <img src="devxlogo.png" alt="devXworks" class="logo">
+                    <div class="brand-text">
+                        <h1 class="brand-name">devXworks</h1>
+                        <span class="brand-tagline">Lead Generator</span>
+                    </div>
+                </div>
+            </div>
         </header>
         
         <main class="content">
@@ -20,18 +30,16 @@
             </div>
             
             <div class="input-form">
-                <h3 class="form-title">💼 Lead Information</h3>
+                <h3 class="form-title">Lead Information</h3>
                 <div class="input-group">
                     <label for="nameInput" class="input-label">
-                        <span class="label-icon">👤</span>
-                        Name
+                        Full Name
                     </label>
                     <input type="text" id="nameInput" class="form-input" placeholder="Enter full name">
                 </div>
                 
                 <div class="input-group">
                     <label for="companyInput" class="input-label">
-                        <span class="label-icon">🏢</span>
                         Company Name
                     </label>
                     <input type="text" id="companyInput" class="form-input" placeholder="Enter company name">
@@ -39,15 +47,14 @@
                 
                 <div class="input-group">
                     <label for="emailDomainInput" class="input-label">
-                        <span class="label-icon">📧</span>
                         Email Domain
                     </label>
-                    <input type="text" id="emailDomainInput" class="form-input" placeholder="domain.com">
+                    <input type="text" id="emailDomainInput" class="form-input" placeholder="@company.com">
                 </div>
             </div>
 
             <div class="email-suggestions" id="emailSuggestions" style="display: none;">
-                <h4 class="suggestions-title">📨 Possible Email Addresses</h4>
+                <h4 class="suggestions-title">Possible Email Addresses</h4>
                 <div class="email-list" id="emailList">
                     <!-- Email suggestions will be populated here -->
                 </div>
@@ -61,18 +68,22 @@
             </div>
             
             <button class="scan-button" id="scanButton">
-                <span class="button-icon">🔍</span>
+                <svg class="button-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
                 Auto-fill from LinkedIn
             </button>
             
             <div class="error-message" id="errorMessage" style="display: none;">
-                <span class="error-icon">⚠️</span>
+                <svg class="error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
                 <span id="errorText"></span>
             </div>
         </main>
         
         <footer class="footer">
-            <p>Enter lead information manually or auto-fill from LinkedIn profiles</p>
+            <p>© devXworks • Professional Lead Generation</p>
         </footer>
     </div>
     
