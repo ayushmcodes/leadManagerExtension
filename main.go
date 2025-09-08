@@ -66,6 +66,15 @@ type ClearResponse struct {
 	Error        string `json:"error,omitempty"`
 }
 
+type ValidLeadsCountResponse struct {
+	Success         bool   `json:"success"`
+	ValidUnexported int64  `json:"validUnexported"`
+	ValidExported   int64  `json:"validExported"`
+	InvalidCount    int64  `json:"invalidCount"`
+	TotalLeads      int64  `json:"totalLeads"`
+	Error           string `json:"error,omitempty"`
+}
+
 const (
 	CACHE_KEY_PREFIX = "lead_"
 	SERVER_VERSION   = "1.0.0"
@@ -159,6 +168,7 @@ func (s *CacheServer) setupRoutes() {
 	// Statistics and management
 	s.router.GET("/stats", s.getCacheStats)
 	s.router.DELETE("/cache", s.clearAllCache)
+	s.router.GET("/leads/count", s.getValidLeadsCount)
 
 	// Additional utility endpoints
 	s.router.GET("/ping", s.ping)
@@ -414,6 +424,78 @@ func (s *CacheServer) clearAllCache(c *gin.Context) {
 	}
 }
 
+func (s *CacheServer) getValidLeadsCount(c *gin.Context) {
+	keys, err := s.redis.Keys(s.ctx, CACHE_KEY_PREFIX+"*").Result()
+	if err != nil {
+		log.Printf("Error getting lead keys: %v", err)
+		c.JSON(http.StatusInternalServerError, ValidLeadsCountResponse{
+			Success: false,
+			Error:   "Failed to get lead keys from Redis",
+		})
+		return
+	}
+
+	totalLeads := int64(len(keys))
+	var validUnexported, validExported, invalidCount int64
+
+	for _, key := range keys {
+		value, err := s.redis.Get(s.ctx, key).Result()
+		if err != nil {
+			if err == redis.Nil {
+				continue // Key doesn't exist anymore
+			}
+			log.Printf("Error getting value for key %s: %v", key, err)
+			continue
+		}
+
+		if value == "" {
+			continue
+		}
+
+		// Parse the JSON data
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(value), &data); err != nil {
+			log.Printf("⚠️ Could not parse JSON for key %s: %v", key, err)
+			continue
+		}
+
+		// Get leadData and exported status
+		leadData, exists := data["leadData"].(map[string]interface{})
+		if !exists {
+			invalidCount++
+			continue
+		}
+
+		emailStatus, exists := leadData["emailStatus"].(string)
+		if !exists {
+			invalidCount++
+			continue
+		}
+
+		if emailStatus == "valid" {
+			exported, _ := data["exported"].(bool)
+			if exported {
+				validExported++
+			} else {
+				validUnexported++
+			}
+		} else {
+			invalidCount++
+		}
+	}
+
+	log.Printf("📊 Valid leads count - Total: %d, Valid Unexported: %d, Valid Exported: %d, Invalid: %d",
+		totalLeads, validUnexported, validExported, invalidCount)
+
+	c.JSON(http.StatusOK, ValidLeadsCountResponse{
+		Success:         true,
+		ValidUnexported: validUnexported,
+		ValidExported:   validExported,
+		InvalidCount:    invalidCount,
+		TotalLeads:      totalLeads,
+	})
+}
+
 func (s *CacheServer) Start(port string) {
 	log.Printf("🚀 Go Redis Cache Server v%s starting on http://localhost:%s", SERVER_VERSION, port)
 	log.Println("📊 Available endpoints:")
@@ -424,6 +506,7 @@ func (s *CacheServer) Start(port string) {
 	log.Println("   DELETE /cache/:email        - Remove specific cached verification")
 	log.Println("   GET    /stats               - Get cache statistics")
 	log.Println("   DELETE /cache               - Clear all cache entries")
+	log.Println("   GET    /leads/count         - Count valid unexported leads")
 	log.Println()
 
 	srv := &http.Server{
