@@ -10,6 +10,7 @@ class LeadGeneratorSidebar {
         this.setupEventListeners();
         this.checkCurrentTab();
         this.initializeCache();
+        this.initializeLeadsCounter();
     }
 
     initializeElements() {
@@ -25,7 +26,11 @@ class LeadGeneratorSidebar {
             companyInput: document.getElementById('companyInput'),
             emailDomainInput: document.getElementById('emailDomainInput'),
             emailSuggestions: document.getElementById('emailSuggestions'),
-            emailList: document.getElementById('emailList')
+            emailList: document.getElementById('emailList'),
+            leadsCounter: document.getElementById('leadsCounter'),
+            validUnexportedCount: document.getElementById('validUnexportedCount'),
+            counterStatus: document.getElementById('counterStatus'),
+            refreshLeadsBtn: document.getElementById('refreshLeadsBtn')
         };
     }
 
@@ -41,6 +46,11 @@ class LeadGeneratorSidebar {
 
         this.elements.emailDomainInput.addEventListener('input', () => {
             this.generateEmailSuggestions();
+        });
+
+        // Listen for leads counter refresh
+        this.elements.refreshLeadsBtn.addEventListener('click', () => {
+            this.refreshLeadsCount();
         });
 
         // Listen for tab changes
@@ -747,6 +757,77 @@ class LeadGeneratorSidebar {
     }
 
     // Form data utility methods
+    // Leads Counter Methods
+    async initializeLeadsCounter() {
+        console.log('🔄 Initializing leads counter...');
+        await this.fetchLeadsCount();
+    }
+
+    async refreshLeadsCount() {
+        if (this.isRefreshingLeads) return;
+        
+        this.isRefreshingLeads = true;
+        this.elements.refreshLeadsBtn.classList.add('loading');
+        this.updateCounterStatus('Refreshing...');
+        
+        try {
+            await this.fetchLeadsCount();
+        } finally {
+            this.isRefreshingLeads = false;
+            this.elements.refreshLeadsBtn.classList.remove('loading');
+        }
+    }
+
+    async fetchLeadsCount() {
+        try {
+            console.log('📊 Fetching leads count from server...');
+            
+            const response = await fetch(`${this.cacheServerUrl}/leads/count`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateLeadsDisplay(data.validUnexported, data.totalLeads);
+                console.log(`✅ Found ${data.validUnexported} valid unexported leads out of ${data.totalLeads} total`);
+            } else {
+                throw new Error(data.error || 'Failed to fetch leads count');
+            }
+        } catch (error) {
+            console.error('❌ Error fetching leads count:', error);
+            this.updateLeadsDisplay('--', 0, true);
+            this.updateCounterStatus(`Error: ${error.message}`, 'error');
+        }
+    }
+
+    updateLeadsDisplay(validUnexported, totalLeads, isError = false) {
+        this.elements.validUnexportedCount.textContent = validUnexported;
+        
+        if (isError) {
+            this.updateCounterStatus('Connection failed', 'error');
+        } else if (validUnexported === 0) {
+            this.updateCounterStatus('All leads exported', 'success');
+        } else {
+            const statusText = totalLeads > 0 ? 
+                `Updated • ${totalLeads} total leads` : 
+                'No leads found';
+            this.updateCounterStatus(statusText, 'success');
+        }
+    }
+
+    updateCounterStatus(message, type = '') {
+        this.elements.counterStatus.textContent = message;
+        this.elements.counterStatus.className = `counter-status ${type}`;
+    }
+
     getFormData() {
         return {
             name: this.elements.nameInput.value.trim(),
@@ -795,7 +876,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.leadGeneratorDebug = {
         getCacheStats: () => leadGeneratorSidebar.getCacheStats(),
         clearCache: () => leadGeneratorSidebar.clearAllCache(),
-        removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email)
+        removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email),
+        refreshLeadsCount: () => leadGeneratorSidebar.refreshLeadsCount(),
+        refreshLeadsCount: () => leadGeneratorSidebar.refreshLeadsCount()
     };
 });
 
@@ -818,7 +901,8 @@ if (document.readyState === 'loading') {
     window.leadGeneratorDebug = {
         getCacheStats: () => leadGeneratorSidebar.getCacheStats(),
         clearCache: () => leadGeneratorSidebar.clearAllCache(),
-        removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email)
+        removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email),
+        refreshLeadsCount: () => leadGeneratorSidebar.refreshLeadsCount()
     };
 }
 

@@ -589,7 +589,129 @@ body {
 .scan-button:focus,
 .verify-button:focus,
 .copy-button:focus,
-.verify-all-button:focus {
+.verify-all-button:focus,
+.refresh-btn:focus {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
+}
+
+/* Leads Counter Styles */
+.leads-counter {
+    background: var(--gradient-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-top: var(--space-xl);
+    box-shadow: var(--shadow-card);
+    transition: var(--transition-smooth);
+}
+
+.leads-counter:hover {
+    box-shadow: var(--shadow-elegant);
+}
+
+.counter-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.counter-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.counter-title {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--foreground);
+    flex: 1;
+}
+
+.refresh-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refresh-btn:hover {
+    background: var(--muted);
+    border-color: var(--primary);
+}
+
+.refresh-btn:active {
+    transform: scale(0.98);
+}
+
+.refresh-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--muted-foreground);
+    transition: var(--transition-fast);
+}
+
+.refresh-btn:hover .refresh-icon {
+    color: var(--primary);
+}
+
+.refresh-btn.loading .refresh-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.counter-display {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+.count-number {
+    font-size: var(--space-2xl);
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1;
+}
+
+.count-label {
+    font-size: var(--font-size-sm);
+    color: var(--muted-foreground);
+    font-weight: 500;
+}
+
+.counter-status {
+    font-size: var(--font-size-sm);
+    color: var(--muted-foreground);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--muted);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    transition: var(--transition-fast);
+}
+
+.counter-status.success {
+    color: hsl(142, 76%, 36%);
+    background: hsl(142, 76%, 95%);
+}
+
+.counter-status.error {
+    color: hsl(0, 72%, 51%);
+    background: hsl(0, 72%, 95%);
 }
