@@ -25,6 +25,8 @@ class LeadGeneratorSidebar {
             nameInput: document.getElementById('nameInput'),
             companyInput: document.getElementById('companyInput'),
             emailDomainInput: document.getElementById('emailDomainInput'),
+            customEmailInput: document.getElementById('customEmailInput'),
+            saveEmailButton: document.getElementById('saveEmailButton'),
             emailSuggestions: document.getElementById('emailSuggestions'),
             emailList: document.getElementById('emailList'),
             leadsCounter: document.getElementById('leadsCounter'),
@@ -51,6 +53,11 @@ class LeadGeneratorSidebar {
         // Listen for leads counter refresh
         this.elements.refreshLeadsBtn.addEventListener('click', () => {
             this.refreshLeadsCount();
+        });
+
+        // Listen for save custom email button
+        this.elements.saveEmailButton.addEventListener('click', () => {
+            this.saveCustomEmail();
         });
 
         // Listen for tab changes
@@ -863,6 +870,104 @@ class LeadGeneratorSidebar {
             errors: errors,
             data: data
         };
+    }
+
+    async saveCustomEmail() {
+        const customEmail = this.elements.customEmailInput.value.trim();
+        const name = this.elements.nameInput.value.trim();
+        const companyName = this.elements.companyInput.value.trim();
+
+        // Basic validation
+        if (!customEmail) {
+            this.showError('Please enter a custom email address');
+            return;
+        }
+
+        if (!name) {
+            this.showError('Please enter a name first');
+            return;
+        }
+
+        if (!companyName) {
+            this.showError('Please enter a company name first');
+            return;
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(customEmail)) {
+            this.showError('Please enter a valid email address');
+            return;
+        }
+
+        // Set loading state for the save button
+        this.elements.saveEmailButton.disabled = true;
+        const originalButtonText = this.elements.saveEmailButton.innerHTML;
+        this.elements.saveEmailButton.innerHTML = `
+            <svg class="button-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+            </svg>
+            Saving...
+        `;
+
+        try {
+            // Parse the name into first and last names
+            const nameParts = name.split(/\s+/).filter(part => part.length > 0);
+            const firstName = nameParts[0] ? nameParts[0].toLowerCase() : '';
+            const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1].toLowerCase() : '';
+
+            // Extract domain from email
+            const domain = customEmail.split('@')[1];
+
+            // Create lead data object to match the format used in verifyEmail
+            const dataToBeStoredInCache = {
+                firstName: firstName,
+                lastName: lastName,
+                companyName: companyName,
+                domain: domain,
+                email: customEmail,
+            };
+
+            console.log('Saving custom email lead data:', dataToBeStoredInCache);
+
+            // Use the existing setCachedVerification method to store the data
+            await this.setCachedVerification(customEmail, dataToBeStoredInCache);
+
+            // Show success feedback
+            this.elements.saveEmailButton.innerHTML = `
+                <svg class="button-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Saved!
+            `;
+            this.elements.saveEmailButton.style.background = 'linear-gradient(135deg, hsl(142, 76%, 45%), hsl(142, 76%, 54%))';
+
+            // Hide any previous errors
+            this.hideError();
+
+            // Clear the custom email input
+            this.elements.customEmailInput.value = '';
+
+            // Refresh leads count to show the new entry
+            setTimeout(() => {
+                this.refreshLeadsCount();
+            }, 500);
+
+            // Reset button after 2 seconds
+            setTimeout(() => {
+                this.elements.saveEmailButton.innerHTML = originalButtonText;
+                this.elements.saveEmailButton.style.background = '';
+                this.elements.saveEmailButton.disabled = false;
+            }, 2000);
+
+        } catch (error) {
+            console.error('Error saving custom email:', error);
+            this.showError(`Failed to save email: ${error.message}`);
+            
+            // Reset button
+            this.elements.saveEmailButton.innerHTML = originalButtonText;
+            this.elements.saveEmailButton.disabled = false;
+        }
     }
 }
 

@@ -246,6 +246,62 @@ body {
     opacity: 1;
 }
 
+/* Custom Email Container */
+.custom-email-container {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: stretch;
+}
+
+.custom-email-container .form-input {
+    flex: 1;
+}
+
+.save-email-button {
+    padding: var(--space-md) var(--space-lg);
+    background: linear-gradient(135deg, hsl(142, 76%, 36%), hsl(142, 76%, 45%));
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    min-width: 80px;
+    white-space: nowrap;
+}
+
+.save-email-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, hsl(142, 76%, 30%), hsl(142, 76%, 39%));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px hsl(142, 76%, 36%, 0.3);
+}
+
+.save-email-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.save-email-button:focus {
+    outline: 2px solid hsl(142, 76%, 36%);
+    outline-offset: 2px;
+}
+
+.save-email-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.save-email-button .button-icon {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
+}
+
 /* Profile Card - Elegant */
 .profile-card {
     background: var(--gradient-card);
