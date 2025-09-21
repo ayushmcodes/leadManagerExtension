@@ -926,6 +926,7 @@ class LeadGeneratorSidebar {
                 companyName: companyName,
                 domain: domain,
                 email: customEmail,
+                emailStatus: "valid",
             };
 
             console.log('Saving custom email lead data:', dataToBeStoredInCache);
