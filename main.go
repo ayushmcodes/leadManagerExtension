@@ -81,10 +81,11 @@ const (
 )
 
 func NewCacheServer() *CacheServer {
-	// Initialize Redis client
+	// Initialize Redis client with Redis Cloud
 	rdb := redis.NewClient(&redis.Options{
-		Addr:         "localhost:6379",
-		Password:     "",
+		Addr:         "redis-19391.c305.ap-south-1-1.ec2.redns.redis-cloud.com:19391",
+		Username:     "default",
+		Password:     "NnYhD1fDHufXmeuRc0y2MLoaxEFuKdps",
 		DB:           0,
 		DialTimeout:  10 * time.Second,
 		ReadTimeout:  30 * time.Second,
@@ -98,12 +99,12 @@ func NewCacheServer() *CacheServer {
 	// Test Redis connection
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
-		log.Printf("❌ Failed to connect to Redis: %v", err)
-		log.Printf("Make sure Redis is running: redis-server")
+		log.Printf("❌ Failed to connect to Redis Cloud: %v", err)
+		log.Printf("Check Redis Cloud connection and credentials")
 		os.Exit(1)
 	}
 
-	log.Println("✅ Connected to Redis successfully")
+	log.Println("✅ Connected to Redis Cloud successfully")
 
 	// Initialize Gin router
 	gin.SetMode(gin.ReleaseMode)
@@ -560,8 +561,8 @@ func main() {
 		}
 	}
 
-	// Check if Redis is available before starting
-	log.Println("🔍 Checking Redis connection...")
+	// Check if Redis Cloud is available before starting
+	log.Println("🔍 Checking Redis Cloud connection...")
 
 	server := NewCacheServer()
 	server.Start(port)
