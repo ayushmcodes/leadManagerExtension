@@ -33,7 +33,9 @@ class LeadGeneratorSidebar {
             leadsCounter: document.getElementById('leadsCounter'),
             validUnexportedCount: document.getElementById('validUnexportedCount'),
             counterStatus: document.getElementById('counterStatus'),
-            refreshLeadsBtn: document.getElementById('refreshLeadsBtn')
+            refreshLeadsBtn: document.getElementById('refreshLeadsBtn'),
+            listBreakdown: document.getElementById('listBreakdown'),
+            breakdownContent: document.getElementById('breakdownContent')
         };
     }
 
@@ -809,7 +811,6 @@ class LeadGeneratorSidebar {
             }
 
             const data = await response.json();
-            
             if (data.success) {
                 this.updateLeadsDisplay(data.validUnexported, data.totalLeads,data.leadCountPerList);
                 console.log(`✅ Found ${data.validUnexported} valid unexported leads out of ${data.totalLeads} total`);
@@ -823,19 +824,72 @@ class LeadGeneratorSidebar {
         }
     }
 
-    updateLeadsDisplay(validUnexported, totalLeads, leadCountPerList,isError = false) {
+    updateLeadsDisplay(validUnexported, totalLeads, leadCountPerList, isError = false) {
         this.elements.validUnexportedCount.textContent = validUnexported;
         
         if (isError) {
             this.updateCounterStatus('Connection failed', 'error');
+            this.hideListBreakdown();
         } else if (validUnexported === 0) {
             this.updateCounterStatus('All leads exported', 'success');
+            this.updateListBreakdown(leadCountPerList);
         } else {
             const statusText = totalLeads > 0 ? 
                 `Updated • ${totalLeads} total leads` : 
                 'No leads found';
             this.updateCounterStatus(statusText, 'success');
+            this.updateListBreakdown(leadCountPerList);
         }
+    }
+
+    updateListBreakdown(leadCountPerList) {
+        if (!leadCountPerList || Object.keys(leadCountPerList).length === 0) {
+            this.hideListBreakdown();
+            return;
+        }
+
+        // Clear existing content
+        this.elements.breakdownContent.innerHTML = '';
+
+        // Sort lists by count (descending)
+        const sortedLists = Object.entries(leadCountPerList)
+            .sort(([,a], [,b]) => b - a)
+            .filter(([listName, count]) => listName && count > 0);
+
+        if (sortedLists.length === 0) {
+            this.hideListBreakdown();
+            return;
+        }
+
+        // Create list items
+        sortedLists.forEach(([listName, count]) => {
+            const listItem = document.createElement('div');
+            listItem.className = 'breakdown-item';
+            
+            listItem.innerHTML = `
+                <div class="breakdown-item-content">
+                    <span class="list-name" title="${listName}">${listName}</span>
+                    <span class="list-count">${count}</span>
+                </div>
+                <div class="breakdown-item-bar">
+                    <div class="breakdown-item-fill" style="width: ${this.calculateBarWidth(count, sortedLists)}%"></div>
+                </div>
+            `;
+            
+            this.elements.breakdownContent.appendChild(listItem);
+        });
+
+        // Show the breakdown section
+        this.elements.listBreakdown.style.display = 'block';
+    }
+
+    calculateBarWidth(count, allLists) {
+        const maxCount = Math.max(...allLists.map(([, c]) => c));
+        return maxCount > 0 ? (count / maxCount) * 100 : 0;
+    }
+
+    hideListBreakdown() {
+        this.elements.listBreakdown.style.display = 'none';
     }
 
     updateCounterStatus(message, type = '') {

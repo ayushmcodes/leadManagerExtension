@@ -478,12 +478,12 @@ func (s *CacheServer) getValidLeadsCount(c *gin.Context) {
 		if emailStatus == "valid" {
 			exported, _ := data["exported"].(bool)
 			if exported {
-				listName, exists := data["listLeadBelongsTo"].(string)
-				if exists {
-					leadCountPerList[listName] = leadCountPerList[listName] + 1
-				}
 				validExported++
 			} else {
+				listName, exists := leadData["listLeadBelongsTo"].(string)
+				if exists && listName != "" {
+					leadCountPerList[listName] = leadCountPerList[listName] + 1
+				}
 				validUnexported++
 			}
 		} else {
