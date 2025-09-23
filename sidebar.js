@@ -25,6 +25,7 @@ class LeadGeneratorSidebar {
             nameInput: document.getElementById('nameInput'),
             companyInput: document.getElementById('companyInput'),
             emailDomainInput: document.getElementById('emailDomainInput'),
+            listNameInput: document.getElementById('listNameInput'),
             customEmailInput: document.getElementById('customEmailInput'),
             saveEmailButton: document.getElementById('saveEmailButton'),
             emailSuggestions: document.getElementById('emailSuggestions'),
@@ -43,6 +44,10 @@ class LeadGeneratorSidebar {
 
         // Listen for name and email domain input changes to generate email suggestions
         this.elements.nameInput.addEventListener('input', () => {
+            this.generateEmailSuggestions();
+        });
+
+        this.elements.companyInput.addEventListener('input', () => {
             this.generateEmailSuggestions();
         });
 
@@ -181,6 +186,7 @@ class LeadGeneratorSidebar {
         const name = this.elements.nameInput.value.trim();
         const companyName = this.elements.companyInput.value.trim();
         const domain = this.elements.emailDomainInput.value.trim();
+        const listName = this.elements.listNameInput.value.trim();
 
         // Hide suggestions if either field is empty
         if (!name || !domain) {
@@ -219,6 +225,7 @@ class LeadGeneratorSidebar {
             lastName: lastName,
             companyName: companyName,
             domain: cleanDomain,
+            listLeadBelongsTo: listName,
             possibleEmails: emailFormats
         }
 
@@ -366,7 +373,8 @@ class LeadGeneratorSidebar {
                 lastName:leadData.lastName,
                 companyName:leadData.companyName,
                 domain:leadData.domain,
-                email:email
+                email:email,
+                listLeadBelongsTo:leadData.listLeadBelongsTo
             }
             const result = await this.callNeverBounceAPI(email);
             dataToBeStoredInCache.emailStatus=result.result;
@@ -803,19 +811,19 @@ class LeadGeneratorSidebar {
             const data = await response.json();
             
             if (data.success) {
-                this.updateLeadsDisplay(data.validUnexported, data.totalLeads);
+                this.updateLeadsDisplay(data.validUnexported, data.totalLeads,data.leadCountPerList);
                 console.log(`✅ Found ${data.validUnexported} valid unexported leads out of ${data.totalLeads} total`);
             } else {
                 throw new Error(data.error || 'Failed to fetch leads count');
             }
         } catch (error) {
             console.error('❌ Error fetching leads count:', error);
-            this.updateLeadsDisplay('--', 0, true);
+            this.updateLeadsDisplay('--', 0,null,true);
             this.updateCounterStatus(`Error: ${error.message}`, 'error');
         }
     }
 
-    updateLeadsDisplay(validUnexported, totalLeads, isError = false) {
+    updateLeadsDisplay(validUnexported, totalLeads, leadCountPerList,isError = false) {
         this.elements.validUnexportedCount.textContent = validUnexported;
         
         if (isError) {

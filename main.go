@@ -67,12 +67,13 @@ type ClearResponse struct {
 }
 
 type ValidLeadsCountResponse struct {
-	Success         bool   `json:"success"`
-	ValidUnexported int64  `json:"validUnexported"`
-	ValidExported   int64  `json:"validExported"`
-	InvalidCount    int64  `json:"invalidCount"`
-	TotalLeads      int64  `json:"totalLeads"`
-	Error           string `json:"error,omitempty"`
+	Success          bool             `json:"success"`
+	ValidUnexported  int64            `json:"validUnexported"`
+	ValidExported    int64            `json:"validExported"`
+	LeadCountPerList map[string]int64 `json:"leadCountPerList,omitempty"`
+	InvalidCount     int64            `json:"invalidCount"`
+	TotalLeads       int64            `json:"totalLeads"`
+	Error            string           `json:"error,omitempty"`
 }
 
 const (
@@ -438,6 +439,7 @@ func (s *CacheServer) getValidLeadsCount(c *gin.Context) {
 
 	totalLeads := int64(len(keys))
 	var validUnexported, validExported, invalidCount int64
+	leadCountPerList := make(map[string]int64)
 
 	for _, key := range keys {
 		value, err := s.redis.Get(s.ctx, key).Result()
@@ -476,6 +478,10 @@ func (s *CacheServer) getValidLeadsCount(c *gin.Context) {
 		if emailStatus == "valid" {
 			exported, _ := data["exported"].(bool)
 			if exported {
+				listName, exists := data["listLeadBelongsTo"].(string)
+				if exists {
+					leadCountPerList[listName] = leadCountPerList[listName] + 1
+				}
 				validExported++
 			} else {
 				validUnexported++
@@ -489,11 +495,12 @@ func (s *CacheServer) getValidLeadsCount(c *gin.Context) {
 		totalLeads, validUnexported, validExported, invalidCount)
 
 	c.JSON(http.StatusOK, ValidLeadsCountResponse{
-		Success:         true,
-		ValidUnexported: validUnexported,
-		ValidExported:   validExported,
-		InvalidCount:    invalidCount,
-		TotalLeads:      totalLeads,
+		Success:          true,
+		ValidUnexported:  validUnexported,
+		ValidExported:    validExported,
+		LeadCountPerList: leadCountPerList,
+		InvalidCount:     invalidCount,
+		TotalLeads:       totalLeads,
 	})
 }
 
