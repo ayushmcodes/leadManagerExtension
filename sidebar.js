@@ -53,6 +53,10 @@ class LeadGeneratorSidebar {
             this.generateEmailSuggestions();
         });
 
+        this.elements.listNameInput.addEventListener('input', () => {
+            this.generateEmailSuggestions();
+        });
+
         this.elements.emailDomainInput.addEventListener('input', () => {
             this.generateEmailSuggestions();
         });
@@ -189,6 +193,7 @@ class LeadGeneratorSidebar {
         const companyName = this.elements.companyInput.value.trim();
         const domain = this.elements.emailDomainInput.value.trim();
         const listName = this.elements.listNameInput.value.trim();
+        console.log("listName: ",listName)
 
         // Hide suggestions if either field is empty
         if (!name || !domain) {
