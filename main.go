@@ -592,47 +592,9 @@ func (s *CacheServer) generateEmailSuggestion(c *gin.Context) {
 }
 
 func (s *CacheServer) callOpenAIForEmailGeneration(companyInfo, personName string) (*EmailContent, error) {
-	// Reference emails from the Python script
-	referenceEmails := []string{
-		`Subject: Powering KreditBee's customer journey with tech
 
-Hi [First Name],
 
-I noticed KreditBee's strong focus on making credit simple and frictionless for first-time borrowers. That user journey—smooth onboarding, instant loan approval, reliable repayment flows—is exactly what keeps customers coming back.
-
-We at devXworks specialize in helping fintechs improve customer-facing applications and backend workflows. Whether it's reducing KYC friction, speeding loan disbursements, or improving mobile app performance, we've helped teams boost user satisfaction while reducing engineering overhead.
-
-If you're open, I'd love to share a couple of ways we could help KreditBee sharpen its customer experience through tech.`,
-
-		`Subject: Helping GMP speed up integrations for global partners
-
-Hi [First Name],
-
-I've been following Get My Parking's mission of making urban parking smarter and more connected—really exciting to see how you're digitizing a space that has been offline for decades.
-
-As GMP partners with parking operators worldwide, I imagine your engineering team is under constant pressure to deliver seamless API integrations with different payment systems, mobility apps, and hardware vendors.
-
-That's where devXworks help. Our team specializes in scalable backend engineering and API-first architectures—helping SaaS companies reduce partner onboarding time and ship integrations 30–40% faster.
-
-Would it make sense to explore if this could help GMP speed up deployments in your next growth markets?`,
-	}
-
-	// Combine reference emails
-	referencesText := ""
-	for i, email := range referenceEmails {
-		referencesText += fmt.Sprintf("Reference Email %d:\n%s\n\n", i+1, email)
-	}
-
-	// Build the prompt based on the Python script
-	prompt := fmt.Sprintf(`You are an expert B2B sales email writer. Your task is to write **one personalized cold email** for '%s' based on the style, tone, and structure of these reference emails:
-
-%s
-
-Company/Person Context: %s
-
-Keep the email concise, professional, and actionable. Focus on how our devXworks software development services can add value to the company. along with some metrics write like this too At devXworks ...... Do not repeat content from the references; make it specific and personalized. Dont add any link or references in the mail ensure all important keywords and figure out the correct company name too and write it in bold using html tags every time it is used devXworks should always be in the mail, and in bold, its the name of our company Use a clear HTML structure with paragraphs (<p>) and (ul li) if needed end the mail with this: Would you be open to a quick call to see if this could help? If so, you can pick a time that works best: add a clickable Calendly link using <a href='https://calendly.com/ayush-devxworks/intro-call-with-ayush-devxworks'>Book a call</a>.
-output should follow json format with keys subject and body only`,
-		personName, referencesText, companyInfo)
+	prompt:="write a mail companyName: "+companyInfo+" personName: "+personName+"1. Mention something specific about the company or person 2. tell a tech problem the is very company specific and not a general problem 3. Briefly explain how DevXworks can help them solve a problem and how their business might improve(quantify the benifits). when mentioning about devXworks start with At DevXworks  4.ensure mail is well structed using bullet points and important keywords are in bold 5.ensure word count is between 120 to 150. 6.start with Hi {First Name} 7.end with a low fricting CTA and add a clickable Calendly link using <a href='https://calendly.com/ayush-devxworks/intro-call-with-ayush-devxworks'>schedule a call</a> 8.create a eye catcing subject, 5–8 words is ideal, mention the company and Highlight what they gain by opening 9.ensure email is HTML based well structed, use li ul tags ad b for bold 10.ensure company name is correct and is bold and devXworks is bold too 11.output should follow json format with keys subject and body only"
 
 	// Prepare OpenAI request
 	openAIRequest := OpenAIRequest{
@@ -662,7 +624,7 @@ output should follow json format with keys subject and body only`,
 	req.Header.Set("Authorization", "Bearer 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")
 
 	// Make the request
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: 3*60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request to OpenAI: %v", err)

@@ -83,6 +83,7 @@ class LeadGeneratorSidebar {
 
         // Listen for email generation button
         this.elements.generateEmailButton.addEventListener('click', () => {
+            console.log("generateEmail clicked")
             this.generateEmail();
         });
 
@@ -809,6 +810,7 @@ hideError() {
 
     // Email Generation Methods
     async generateEmail() {
+        console.log("generateEmail")
         const personName = this.elements.nameInput.value.trim();
         const companyInfo = this.elements.companyInfoInput.value.trim();
 
@@ -836,6 +838,10 @@ hideError() {
         try {
             console.log('🤖 Generating email for:', {personName, companyInfo });
 
+            // Create AbortController for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3*60000); // 60 seconds timeout
+
             const response = await fetch(`${this.cacheServerUrl}/generate-email-suggestion`, {
                 method: 'POST',
                 headers: {
@@ -844,8 +850,12 @@ hideError() {
                 body: JSON.stringify({
                     personName: personName,
                     companyInfo: companyInfo
-                })
+                }),
+                signal: controller.signal
             });
+
+            // Clear timeout if request completes successfully
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -864,7 +874,13 @@ hideError() {
 
         } catch (error) {
             console.error('❌ Error generating email:', error);
-            this.showError(`Failed to generate email: ${error.message}`);
+            
+            // Handle timeout error specifically
+            if (error.name === 'AbortError') {
+                this.showError('Email generation timed out after 60 seconds. Please try again.');
+            } else {
+                this.showError(`Failed to generate email: ${error.message}`);
+            }
         } finally {
             // Reset button state
             this.elements.generateEmailButton.innerHTML = originalButtonText;
@@ -1181,32 +1197,19 @@ hideError() {
 // Initialize the sidebar when DOM is loaded
 let leadGeneratorSidebar;
 
-document.addEventListener('DOMContentLoaded', () => {
-    leadGeneratorSidebar = new LeadGeneratorSidebar();
-    
-    // Expose cache management functions to the global scope for debugging
-    window.leadGeneratorDebug = {
-        getCacheStats: () => leadGeneratorSidebar.getCacheStats(),
-        clearCache: () => leadGeneratorSidebar.clearAllCache(),
-        removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email),
-        refreshLeadsCount: () => leadGeneratorSidebar.refreshLeadsCount(),
-        refreshLeadsCount: () => leadGeneratorSidebar.refreshLeadsCount()
-    };
-});
-
-// Also initialize immediately if DOM is already loaded
+// Initialize immediately if DOM is already loaded, otherwise wait for DOMContentLoaded
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        leadGeneratorSidebar = new LeadGeneratorSidebar();
-        
-        // Expose cache management functions to the global scope for debugging
-        window.leadGeneratorDebug = {
-            getCacheStats: () => leadGeneratorSidebar.getCacheStats(),
-            clearCache: () => leadGeneratorSidebar.clearAllCache(),
-            removeCachedEmail: (email) => leadGeneratorSidebar.removeCachedVerification(email)
-        };
-    });
+    document.addEventListener('DOMContentLoaded', initializeSidebar);
 } else {
+    initializeSidebar();
+}
+
+function initializeSidebar() {
+    // Prevent multiple initializations
+    if (leadGeneratorSidebar) {
+        return;
+    }
+    
     leadGeneratorSidebar = new LeadGeneratorSidebar();
     
     // Expose cache management functions to the global scope for debugging
