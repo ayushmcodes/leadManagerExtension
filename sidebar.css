@@ -862,3 +862,280 @@ body {
     transition: width 0.6s ease-out;
     min-width: 2px;
 }
+
+/* Email Generation Styles */
+.email-generation {
+    background: var(--gradient-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-2xl);
+    margin-bottom: var(--space-xl);
+    box-shadow: var(--shadow-card);
+    transition: var(--transition-smooth);
+}
+
+.email-generation:hover {
+    box-shadow: var(--shadow-elegant);
+}
+
+.generation-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.generation-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.generation-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0;
+}
+
+.generation-form {
+    margin-bottom: var(--space-lg);
+}
+
+.form-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: var(--space-md) var(--space-lg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    background: var(--background);
+    color: var(--foreground);
+    transition: var(--transition-smooth);
+    outline: none;
+    resize: vertical;
+}
+
+.form-textarea:focus {
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 3px hsl(217, 91%, 60%, 0.1);
+    background: var(--background);
+}
+
+.form-textarea::placeholder {
+    color: var(--muted-foreground);
+    opacity: 1;
+}
+
+.generate-email-button {
+    width: 100%;
+    padding: var(--space-lg) var(--space-xl);
+    background: linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 83%, 68%));
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    box-shadow: var(--shadow-card);
+    outline: none;
+    margin-top: var(--space-lg);
+}
+
+.generate-email-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-elegant);
+    background: linear-gradient(135deg, hsl(262, 83%, 52%), hsl(262, 83%, 62%));
+}
+
+.generate-email-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.generate-email-button:focus {
+    box-shadow: var(--shadow-elegant), 0 0 0 3px hsl(262, 83%, 58%, 0.2);
+}
+
+.generate-email-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.loading-spin {
+    animation: spin 1s linear infinite;
+}
+
+.generation-results {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-lg);
+    margin-top: var(--space-lg);
+}
+
+.result-group {
+    margin-bottom: var(--space-lg);
+}
+
+.result-group:last-child {
+    margin-bottom: 0;
+}
+
+.result-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--foreground);
+    margin-bottom: var(--space-sm);
+}
+
+.result-field {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: flex-start;
+}
+
+.result-input,
+.result-textarea {
+    flex: 1;
+    padding: var(--space-md) var(--space-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-family);
+    background: var(--muted);
+    color: var(--foreground);
+    outline: none;
+    transition: var(--transition-fast);
+}
+
+.result-textarea {
+    min-height: 120px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.result-input:focus,
+.result-textarea:focus {
+    border-color: var(--primary);
+    background: var(--background);
+}
+
+.copy-result-button {
+    padding: var(--space-md);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.copy-result-button:hover:not(:disabled) {
+    background: var(--primary-glow);
+    transform: scale(1.05);
+}
+
+.copy-result-button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.copy-result-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* HTML Content Display */
+.result-html-content {
+    flex: 1;
+    padding: var(--space-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--background);
+    color: var(--foreground);
+    min-height: 120px;
+    max-height: 300px;
+    overflow-y: auto;
+    line-height: 1.6;
+    font-size: var(--font-size-sm);
+}
+
+.result-html-content p {
+    margin: 0 0 var(--space-md) 0;
+}
+
+.result-html-content p:last-child {
+    margin-bottom: 0;
+}
+
+.result-html-content ul {
+    margin: var(--space-md) 0;
+    padding-left: var(--space-xl);
+}
+
+.result-html-content li {
+    margin-bottom: var(--space-xs);
+}
+
+.result-html-content b {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.result-html-content a {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+.result-html-content a:hover {
+    color: var(--primary-glow);
+}
+
+.body-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.toggle-view-button {
+    padding: var(--space-sm);
+    background: var(--muted);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+.toggle-view-button:hover:not(:disabled) {
+    background: var(--border);
+    border-color: var(--primary);
+}
+
+.toggle-view-button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.toggle-view-button svg {
+    width: 14px;
+    height: 14px;
+}

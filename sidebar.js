@@ -35,7 +35,17 @@ class LeadGeneratorSidebar {
             counterStatus: document.getElementById('counterStatus'),
             refreshLeadsBtn: document.getElementById('refreshLeadsBtn'),
             listBreakdown: document.getElementById('listBreakdown'),
-            breakdownContent: document.getElementById('breakdownContent')
+            breakdownContent: document.getElementById('breakdownContent'),
+            emailGeneration: document.getElementById('emailGeneration'),
+            companyInfoInput: document.getElementById('companyInfoInput'),
+            generateEmailButton: document.getElementById('generateEmailButton'),
+            generationResults: document.getElementById('generationResults'),
+            generatedSubject: document.getElementById('generatedSubject'),
+            generatedBody: document.getElementById('generatedBody'),
+            generatedBodyRaw: document.getElementById('generatedBodyRaw'),
+            toggleViewButton: document.getElementById('toggleViewButton'),
+            copySubjectButton: document.getElementById('copySubjectButton'),
+            copyBodyButton: document.getElementById('copyBodyButton')
         };
     }
 
@@ -69,6 +79,25 @@ class LeadGeneratorSidebar {
         // Listen for save custom email button
         this.elements.saveEmailButton.addEventListener('click', () => {
             this.saveCustomEmail();
+        });
+
+        // Listen for email generation button
+        this.elements.generateEmailButton.addEventListener('click', () => {
+            this.generateEmail();
+        });
+
+        // Listen for copy buttons
+        this.elements.copySubjectButton.addEventListener('click', () => {
+            this.copyToClipboard(this.elements.generatedSubject.value, this.elements.copySubjectButton);
+        });
+
+        this.elements.copyBodyButton.addEventListener('click', () => {
+            this.copyEmailBody();
+        });
+
+        // Listen for toggle view button
+        this.elements.toggleViewButton.addEventListener('click', () => {
+            this.toggleEmailBodyView();
         });
 
         // Listen for tab changes
@@ -179,7 +208,7 @@ class LeadGeneratorSidebar {
         this.elements.errorMessage.style.display = 'flex';
     }
 
-    hideError() {
+hideError() {
         this.elements.errorMessage.style.display = 'none';
     }
 
@@ -776,6 +805,116 @@ class LeadGeneratorSidebar {
             console.error('❌ Error clearing Chrome storage cache:', error);
             return 0;
         }
+    }
+
+    // Email Generation Methods
+    async generateEmail() {
+        const personName = this.elements.nameInput.value.trim();
+        const companyInfo = this.elements.companyInfoInput.value.trim();
+
+        // Validate required fields
+        if (!companyInfo) {
+            this.showError('Please enter companyInfo');
+            return;
+        }
+
+        if (!personName) {
+            this.showError('Please enter a person name first');
+            return;
+        }
+
+        // Set loading state
+        this.elements.generateEmailButton.disabled = true;
+        const originalButtonText = this.elements.generateEmailButton.innerHTML;
+        this.elements.generateEmailButton.innerHTML = `
+            <svg class="button-icon loading-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Generating...
+        `;
+
+        try {
+            console.log('🤖 Generating email for:', {personName, companyInfo });
+
+            const response = await fetch(`${this.cacheServerUrl}/generate-email-suggestion`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    personName: personName,
+                    companyInfo: companyInfo
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Display the generated email
+                this.displayGeneratedEmail(data.subject, data.body);
+                this.hideError();
+                console.log('✅ Email generated successfully');
+            } else {
+                throw new Error(data.error || 'Failed to generate email');
+            }
+
+        } catch (error) {
+            console.error('❌ Error generating email:', error);
+            this.showError(`Failed to generate email: ${error.message}`);
+        } finally {
+            // Reset button state
+            this.elements.generateEmailButton.innerHTML = originalButtonText;
+            this.elements.generateEmailButton.disabled = false;
+        }
+    }
+
+    displayGeneratedEmail(subject, body) {
+        // Store the raw body content
+        this.rawEmailBody = body;
+        this.isHtmlView = true;
+
+        // Populate the result fields
+        this.elements.generatedSubject.value = subject;
+        
+        // Render HTML content in the div
+        this.elements.generatedBody.innerHTML = body;
+        
+        // Store raw content in hidden textarea
+        this.elements.generatedBodyRaw.value = body;
+
+        // Show the results section
+        this.elements.generationResults.style.display = 'block';
+
+        // Scroll to results
+        this.elements.generationResults.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'nearest' 
+        });
+    }
+
+    toggleEmailBodyView() {
+        this.isHtmlView = !this.isHtmlView;
+        
+        if (this.isHtmlView) {
+            // Show HTML rendered view
+            this.elements.generatedBody.style.display = 'block';
+            this.elements.generatedBodyRaw.style.display = 'none';
+            this.elements.toggleViewButton.title = 'Show raw HTML';
+        } else {
+            // Show raw HTML view
+            this.elements.generatedBody.style.display = 'none';
+            this.elements.generatedBodyRaw.style.display = 'block';
+            this.elements.toggleViewButton.title = 'Show rendered HTML';
+        }
+    }
+
+    copyEmailBody() {
+        // Always copy the raw HTML content
+        this.copyToClipboard(this.rawEmailBody, this.elements.copyBodyButton);
     }
 
     // Form data utility methods

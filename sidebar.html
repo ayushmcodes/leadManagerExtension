@@ -103,6 +103,67 @@
                 <span id="errorText"></span>
             </div>
 
+            <!-- Email Generation Section -->
+            <div class="email-generation" id="emailGeneration" style="display: block;">
+                <div class="generation-header">
+                    <svg class="generation-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    <h3 class="generation-title">AI Email Generation</h3>
+                </div>
+                
+                <div class="generation-form">
+                    <div class="input-group">
+                        <label for="companyInfoInput" class="input-label">
+                            Company Information
+                        </label>
+                        <textarea id="companyInfoInput" class="form-textarea" placeholder="Enter additional context about the company (e.g., industry, services, recent news...)"></textarea>
+                    </div>
+                    
+                    <button class="generate-email-button" id="generateEmailButton">
+                        <svg class="button-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        Generate Email
+                    </button>
+                </div>
+
+                <div class="generation-results" id="generationResults" style="display: none;">
+                    <div class="result-group">
+                        <label class="result-label">Subject Line</label>
+                        <div class="result-field">
+                            <input type="text" id="generatedSubject" class="result-input" readonly>
+                            <button class="copy-result-button" id="copySubjectButton" title="Copy subject">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="result-group">
+                        <label class="result-label">Email Body</label>
+                        <div class="result-field">
+                            <div id="generatedBody" class="result-html-content"></div>
+                            <textarea id="generatedBodyRaw" class="result-textarea" readonly style="display: none;"></textarea>
+                            <div class="body-controls">
+                                <button class="toggle-view-button" id="toggleViewButton" title="Toggle HTML/Raw view">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </button>
+                                <button class="copy-result-button" id="copyBodyButton" title="Copy email body">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="leads-counter" id="leadsCounter">
                 <div class="counter-header">
                     <svg class="counter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

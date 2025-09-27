@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -74,6 +76,47 @@ type ValidLeadsCountResponse struct {
 	InvalidCount     int64            `json:"invalidCount"`
 	TotalLeads       int64            `json:"totalLeads"`
 	Error            string           `json:"error,omitempty"`
+}
+
+type EmailGenerationRequest struct {
+	CompanyInfo string `json:"companyInfo" binding:"required"`
+	PersonName  string `json:"personName" binding:"required"`
+}
+
+type EmailGenerationResponse struct {
+	Success bool   `json:"success"`
+	Subject string `json:"subject,omitempty"`
+	Body    string `json:"body,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+type OpenAIRequest struct {
+	Model string `json:"model"`
+	Input string `json:"input"`
+	Tools []Tool `json:"tools"`
+}
+
+type Tool struct {
+	Type string `json:"type"`
+}
+
+type OpenAIResponse struct {
+	Output []OutputItem `json:"output"`
+}
+
+type OutputItem struct {
+	Type    string    `json:"type"`
+	Content []Content `json:"content"`
+}
+
+type Content struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+type EmailContent struct {
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
 }
 
 const (
@@ -171,6 +214,9 @@ func (s *CacheServer) setupRoutes() {
 	s.router.GET("/stats", s.getCacheStats)
 	s.router.DELETE("/cache", s.clearAllCache)
 	s.router.GET("/leads/count", s.getValidLeadsCount)
+
+	// Email generation
+	s.router.POST("/generate-email-suggestion", s.generateEmailSuggestion)
 
 	// Additional utility endpoints
 	s.router.GET("/ping", s.ping)
@@ -504,17 +550,193 @@ func (s *CacheServer) getValidLeadsCount(c *gin.Context) {
 	})
 }
 
+func (s *CacheServer) generateEmailSuggestion(c *gin.Context) {
+	var request EmailGenerationRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		log.Printf("Invalid JSON for email generation: %v", err)
+		c.JSON(http.StatusBadRequest, EmailGenerationResponse{
+			Success: false,
+			Error:   "Invalid JSON in request body",
+		})
+		return
+	}
+
+	// Validate required fields
+	if request.CompanyInfo == "" || request.PersonName == "" {
+		c.JSON(http.StatusBadRequest, EmailGenerationResponse{
+			Success: false,
+			Error:   "Company name and person name are required",
+		})
+		return
+	}
+
+	log.Printf("🤖 Generating email for company: %s, person: %s", request.CompanyInfo, request.PersonName)
+
+	// Generate email using OpenAI
+	emailContent, err := s.callOpenAIForEmailGeneration(request.CompanyInfo, request.PersonName)
+	if err != nil {
+		log.Printf("Error generating email: %v", err)
+		c.JSON(http.StatusInternalServerError, EmailGenerationResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to generate email: %v", err),
+		})
+		return
+	}
+
+	log.Printf("✅ Successfully generated email for %s", request.CompanyInfo)
+	c.JSON(http.StatusOK, EmailGenerationResponse{
+		Success: true,
+		Subject: emailContent.Subject,
+		Body:    emailContent.Body,
+	})
+}
+
+func (s *CacheServer) callOpenAIForEmailGeneration(companyInfo, personName string) (*EmailContent, error) {
+	// Reference emails from the Python script
+	referenceEmails := []string{
+		`Subject: Powering KreditBee's customer journey with tech
+
+Hi [First Name],
+
+I noticed KreditBee's strong focus on making credit simple and frictionless for first-time borrowers. That user journey—smooth onboarding, instant loan approval, reliable repayment flows—is exactly what keeps customers coming back.
+
+We at devXworks specialize in helping fintechs improve customer-facing applications and backend workflows. Whether it's reducing KYC friction, speeding loan disbursements, or improving mobile app performance, we've helped teams boost user satisfaction while reducing engineering overhead.
+
+If you're open, I'd love to share a couple of ways we could help KreditBee sharpen its customer experience through tech.`,
+
+		`Subject: Helping GMP speed up integrations for global partners
+
+Hi [First Name],
+
+I've been following Get My Parking's mission of making urban parking smarter and more connected—really exciting to see how you're digitizing a space that has been offline for decades.
+
+As GMP partners with parking operators worldwide, I imagine your engineering team is under constant pressure to deliver seamless API integrations with different payment systems, mobility apps, and hardware vendors.
+
+That's where devXworks help. Our team specializes in scalable backend engineering and API-first architectures—helping SaaS companies reduce partner onboarding time and ship integrations 30–40% faster.
+
+Would it make sense to explore if this could help GMP speed up deployments in your next growth markets?`,
+	}
+
+	// Combine reference emails
+	referencesText := ""
+	for i, email := range referenceEmails {
+		referencesText += fmt.Sprintf("Reference Email %d:\n%s\n\n", i+1, email)
+	}
+
+	// Build the prompt based on the Python script
+	prompt := fmt.Sprintf(`You are an expert B2B sales email writer. Your task is to write **one personalized cold email** for '%s' based on the style, tone, and structure of these reference emails:
+
+%s
+
+Company/Person Context: %s
+
+Keep the email concise, professional, and actionable. Focus on how our devXworks software development services can add value to the company. along with some metrics write like this too At devXworks ...... Do not repeat content from the references; make it specific and personalized. Dont add any link or references in the mail ensure all important keywords and figure out the correct company name too and write it in bold using html tags every time it is used devXworks should always be in the mail, and in bold, its the name of our company Use a clear HTML structure with paragraphs (<p>) and (ul li) if needed end the mail with this: Would you be open to a quick call to see if this could help? If so, you can pick a time that works best: add a clickable Calendly link using <a href='https://calendly.com/ayush-devxworks/intro-call-with-ayush-devxworks'>Book a call</a>.
+output should follow json format with keys subject and body only`,
+		personName, referencesText, companyInfo)
+
+	// Prepare OpenAI request
+	openAIRequest := OpenAIRequest{
+		Model: "gpt-5",
+		Input: prompt,
+		Tools: []Tool{
+			{
+				Type: "web_search",
+			},
+		},
+	}
+
+	// Convert to JSON
+	requestBody, err := json.Marshal(openAIRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %v", err)
+	}
+
+	// Make HTTP request to OpenAI
+	req, err := http.NewRequest("POST", "https://api.openai.com/v1/responses", bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer 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")
+
+	// Make the request
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request to OpenAI: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %v", err)
+	}
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("OpenAI API returned status %d: %s", resp.StatusCode, string(responseBody))
+	}
+
+	// Parse OpenAI response
+	var openAIResponse OpenAIResponse
+	if err := json.Unmarshal(responseBody, &openAIResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse OpenAI response: %v", err)
+	}
+
+	// Extract content from the nested structure
+	var content string
+	for _, output := range openAIResponse.Output {
+		if output.Type == "message" {
+			for _, contentItem := range output.Content {
+				if contentItem.Type == "output_text" {
+					content = contentItem.Text
+					break
+				}
+			}
+			if content != "" {
+				break
+			}
+		}
+	}
+
+	if content == "" {
+		return nil, fmt.Errorf("no output text found in OpenAI response")
+	}
+
+	// Log the extracted content for debugging
+	log.Printf("📧 Extracted content from OpenAI: %s", content)
+
+	// Parse the JSON response from OpenAI (it should contain subject and body)
+	var emailContent EmailContent
+	if err := json.Unmarshal([]byte(content), &emailContent); err != nil {
+		// If JSON parsing fails, try to extract subject and body manually
+		log.Printf("❌ Warning: Could not parse JSON response from OpenAI: %v", err)
+		log.Printf("📝 Raw content: %s", content)
+		return &EmailContent{
+			Subject: content,
+			Body:    content,
+		}, nil
+	}
+
+	log.Printf("✅ Successfully parsed email - Subject: %s", emailContent.Subject)
+	return &emailContent, nil
+}
+
 func (s *CacheServer) Start(port string) {
 	log.Printf("🚀 Go Redis Cache Server v%s starting on http://localhost:%s", SERVER_VERSION, port)
 	log.Println("📊 Available endpoints:")
-	log.Println("   GET    /health              - Health check and Redis status")
-	log.Println("   GET    /ping                - Simple ping endpoint")
-	log.Println("   GET    /cache/:email        - Get cached verification result")
-	log.Println("   POST   /cache/:email        - Cache verification result")
-	log.Println("   DELETE /cache/:email        - Remove specific cached verification")
-	log.Println("   GET    /stats               - Get cache statistics")
-	log.Println("   DELETE /cache               - Clear all cache entries")
-	log.Println("   GET    /leads/count         - Count valid unexported leads")
+	log.Println("   GET    /health                    - Health check and Redis status")
+	log.Println("   GET    /ping                      - Simple ping endpoint")
+	log.Println("   GET    /cache/:email              - Get cached verification result")
+	log.Println("   POST   /cache/:email              - Cache verification result")
+	log.Println("   DELETE /cache/:email              - Remove specific cached verification")
+	log.Println("   GET    /stats                     - Get cache statistics")
+	log.Println("   DELETE /cache                     - Clear all cache entries")
+	log.Println("   GET    /leads/count               - Count valid unexported leads")
+	log.Println("   POST   /generate-email-suggestion - Generate personalized email using AI")
 	log.Println()
 
 	srv := &http.Server{
