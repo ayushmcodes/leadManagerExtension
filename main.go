@@ -675,7 +675,7 @@ func (s *CacheServer) callOpenAIForEmailGeneration(companyInfo, personName strin
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer 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")
+	//req.Header.Set("Authorization", "Bearer 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")
 
 	// Create a context with timeout for the request
 	ctx, cancel := context.WithTimeout(context.Background(), 3*60*time.Second)
