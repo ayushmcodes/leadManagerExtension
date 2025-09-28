@@ -4,9 +4,9 @@ class LeadGeneratorSidebar {
         this.elements = {};
         this.currentTabId = null;
         this.isScanning = false;
+        this.verifiedEmail=null;
         this.cacheServerUrl = 'http://localhost:3001';
         this.pythonServerUrl='http://localhost:8000'; // Go Redis Cache Server
-        
         this.initializeElements();
         this.setupEventListeners();
         this.checkCurrentTab();
@@ -46,7 +46,8 @@ class LeadGeneratorSidebar {
             generatedBodyRaw: document.getElementById('generatedBodyRaw'),
             toggleViewButton: document.getElementById('toggleViewButton'),
             copySubjectButton: document.getElementById('copySubjectButton'),
-            copyBodyButton: document.getElementById('copyBodyButton')
+            copyBodyButton: document.getElementById('copyBodyButton'),
+            saveEmailButton: document.getElementById('saveEmailButton')
         };
     }
 
@@ -84,7 +85,6 @@ class LeadGeneratorSidebar {
 
         // Listen for email generation button
         this.elements.generateEmailButton.addEventListener('click', () => {
-            console.log("generateEmail clicked")
             this.generateEmail();
         });
 
@@ -95,6 +95,10 @@ class LeadGeneratorSidebar {
 
         this.elements.copyBodyButton.addEventListener('click', () => {
             this.copyEmailBody();
+        });
+
+        this.elements.saveEmailButton.addEventListener('click', () => {
+            this.saveEmail();
         });
 
         // Listen for toggle view button
@@ -559,6 +563,7 @@ hideError() {
 
     async setCachedVerification(email, verificationResult) {
         try {
+            this.verifiedEmail=email;
             const response = await fetch(`${this.cacheServerUrl}/cache/${encodeURIComponent(email.toLowerCase())}`, {
                 method: 'POST',
                 headers: {
@@ -811,8 +816,7 @@ hideError() {
 
     // Email Generation Methods
     async generateEmail() {
-        console.log("generateEmail")
-        const personName = this.elements.nameInput.value.trim();
+        const personName = this.elements.nameInput.value.trim().split(" ")[0];
         const companyInfo = this.elements.companyInfoInput.value.trim();
 
         // Validate required fields
@@ -932,6 +936,26 @@ hideError() {
     copyEmailBody() {
         // Always copy the raw HTML content
         this.copyToClipboard(this.rawEmailBody, this.elements.copyBodyButton);
+    }
+
+    async saveEmail(){
+        body= this.elements.generatedSubject.value
+        subject= this.elements.generatedBody.value
+        email=this.verifiedEmail 
+
+        const saveEmailRequestBody={
+            subject:subject,
+            body:body
+        }
+
+        const response = await fetch(`${this.cacheServerUrl}/cache/savemail/${encodeURIComponent(email.toLowerCase())}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(saveEmailRequestBody)
+        });
+
     }
 
     // Form data utility methods

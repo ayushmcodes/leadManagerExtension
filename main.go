@@ -32,6 +32,12 @@ type CachedData struct {
 	Timestamp int64                  `json:"timestamp"`
 }
 
+type CachedEmailData struct {
+	Email     string                 `json:"email"`
+	EmailData  map[string]interface{} `json:"emailData"`
+	Timestamp int64                  `json:"timestamp"`
+}
+
 type CacheResponse struct {
 	Success  bool                   `json:"success"`
 	Data     map[string]interface{} `json:"data,omitempty"`
@@ -121,6 +127,7 @@ type EmailContent struct {
 
 const (
 	CACHE_KEY_PREFIX = "lead_"
+	CACHE_KEY_PREFIX_EMAIL = "email_"
 	SERVER_VERSION   = "1.0.0"
 )
 
@@ -218,6 +225,7 @@ func (s *CacheServer) setupRoutes() {
 	// Cache operations
 	s.router.GET("/cache/:email", s.getCachedVerification)
 	s.router.POST("/cache/:email", s.setCachedVerification)
+	s.router.POST("/cache/savemail/:email", s.setCachedEmail)
 	s.router.DELETE("/cache/:email", s.deleteCachedVerification)
 
 	// Statistics and management
@@ -335,6 +343,60 @@ func (s *CacheServer) setCachedVerification(c *gin.Context) {
 	cacheData := CachedData{
 		Email:     email,
 		LeadData:  leadData,
+		Timestamp: time.Now().UnixMilli(),
+	}
+
+	dataJSON, err := json.Marshal(cacheData)
+	if err != nil {
+		log.Printf("Error marshaling cache data for %s: %v", email, err)
+		c.JSON(http.StatusInternalServerError, CacheResponse{
+			Success: false,
+			Error:   "Failed to serialize cache data",
+		})
+		return
+	}
+
+	// Set with no expiration (permanent cache)
+	if err := s.redis.Set(s.ctx, cacheKey, dataJSON, 0).Err(); err != nil {
+		log.Printf("Error saving to cache for %s: %v", email, err)
+		c.JSON(http.StatusInternalServerError, CacheResponse{
+			Success: false,
+			Error:   "Failed to save to cache",
+		})
+		return
+	}
+
+	log.Printf("✅ Cached verification result for %s", email)
+	c.JSON(http.StatusOK, CacheResponse{
+		Success: true,
+		Message: "Cached successfully",
+	})
+}
+
+func (s *CacheServer) setCachedEmail(c *gin.Context) {
+	email := strings.ToLower(strings.TrimSpace(c.Param("email")))
+	if email == "" {
+		c.JSON(http.StatusBadRequest, CacheResponse{
+			Success: false,
+			Error:   "Email parameter is required",
+		})
+		return
+	}
+
+	var emailData map[string]interface{}
+	if err := c.ShouldBindJSON(&emailData); err != nil {
+		log.Printf("Invalid JSON for %s: %v", email, err)
+		c.JSON(http.StatusBadRequest, CacheResponse{
+			Success: false,
+			Error:   "Invalid JSON in request body",
+		})
+		return
+	}
+
+	cacheKey := CACHE_KEY_PREFIX_EMAIL + email
+	cacheData := CachedEmailData{
+		Email:     email,
+		EmailData: emailData,
 		Timestamp: time.Now().UnixMilli(),
 	}
 
