@@ -173,6 +173,16 @@ func NewCacheServer() *CacheServer {
 
 	router.Use(gin.Recovery())
 
+	// Add middleware to handle long-running requests
+	router.Use(func(c *gin.Context) {
+		// Set a longer timeout for specific endpoints
+		if c.Request.URL.Path == "/generate-email-suggestion" {
+			c.Header("Connection", "keep-alive")
+			c.Header("Keep-Alive", "timeout=300, max=1000")
+		}
+		c.Next()
+	})
+
 	// Configure CORS - Allow all origins for development (Chrome extensions need this)
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
@@ -572,29 +582,73 @@ func (s *CacheServer) generateEmailSuggestion(c *gin.Context) {
 
 	log.Printf("🤖 Generating email for company: %s, person: %s", request.CompanyInfo, request.PersonName)
 
+	// Set headers to prevent timeout
+	c.Header("Content-Type", "application/json")
+	c.Header("Connection", "keep-alive")
+
 	// Generate email using OpenAI
+	log.Printf("🔄 Starting OpenAI API call for %s", request.CompanyInfo)
 	emailContent, err := s.callOpenAIForEmailGeneration(request.CompanyInfo, request.PersonName)
 	if err != nil {
-		log.Printf("Error generating email: %v", err)
+		log.Printf("❌ Error generating email: %v", err)
+
+		// Ensure we haven't already written a response
+		if c.Writer.Written() {
+			log.Printf("⚠️ Response already written during error (%d bytes), cannot send error response", c.Writer.Size())
+			return
+		}
+
+		// Check if client connection is still active
+		if c.Request.Context().Err() != nil {
+			log.Printf("❌ Client connection closed during error: %v", c.Request.Context().Err())
+			return
+		}
+
+		log.Printf("📤 Sending error response to client...")
 		c.JSON(http.StatusInternalServerError, EmailGenerationResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Failed to generate email: %v", err),
 		})
+		log.Printf("✅ Error response sent successfully")
+		return
+	}
+	log.Printf("✅ OpenAI API call completed successfully for %s", request.CompanyInfo)
+
+	log.Printf("✅ Successfully generated email for %s", request.CompanyInfo)
+
+	// Check if response has already been written
+	if c.Writer.Written() {
+		log.Printf("⚠️ Response already written (%d bytes), skipping JSON response", c.Writer.Size())
 		return
 	}
 
-	log.Printf("✅ Successfully generated email for %s", request.CompanyInfo)
-	c.JSON(http.StatusOK, EmailGenerationResponse{
+	// Check if client connection is still active
+	if c.Request.Context().Err() != nil {
+		log.Printf("❌ Client connection closed: %v", c.Request.Context().Err())
+		return
+	}
+
+	response := EmailGenerationResponse{
 		Success: true,
 		Subject: emailContent.Subject,
 		Body:    emailContent.Body,
-	})
+	}
+
+	log.Printf("📤 Sending response to client...")
+	c.JSON(http.StatusOK, response)
+
+	// Ensure the response is flushed immediately
+	if flusher, ok := c.Writer.(http.Flusher); ok {
+		flusher.Flush()
+		log.Printf("✅ Response flushed to client")
+	}
+
+	log.Printf("✅ Response sent successfully")
 }
 
 func (s *CacheServer) callOpenAIForEmailGeneration(companyInfo, personName string) (*EmailContent, error) {
 
-
-	prompt:="write a mail companyName: "+companyInfo+" personName: "+personName+"1. Mention something specific about the company or person 2. tell a tech problem the is very company specific and not a general problem 3. Briefly explain how DevXworks can help them solve a problem and how their business might improve(quantify the benifits). when mentioning about devXworks start with At DevXworks  4.ensure mail is well structed using bullet points and important keywords are in bold 5.ensure word count is between 120 to 150. 6.start with Hi {First Name} 7.end with a low fricting CTA and add a clickable Calendly link using <a href='https://calendly.com/ayush-devxworks/intro-call-with-ayush-devxworks'>schedule a call</a> 8.create a eye catcing subject, 5–8 words is ideal, mention the company and Highlight what they gain by opening 9.ensure email is HTML based well structed, use li ul tags ad b for bold 10.ensure company name is correct and is bold and devXworks is bold too 11.output should follow json format with keys subject and body only"
+	prompt := "write a mail companyName: " + companyInfo + " personName: " + personName + "1. Mention something specific about the company or person 2. tell a tech problem the is very company specific and not a general problem 3. Briefly explain how DevXworks can help them solve a problem and how their business might improve(quantify the benifits). when mentioning about devXworks start with At DevXworks  4.ensure mail is well structed using bullet points and important keywords are in bold 5.ensure word count is between 120 to 150. 6.start with Hi {First Name} 7.end with a low fricting CTA and add a clickable Calendly link using <a href='https://calendly.com/ayush-devxworks/intro-call-with-ayush-devxworks'>schedule a call</a> 8.create a eye catcing subject, 5–8 words is ideal, mention the company and Highlight what they gain by opening 9.ensure email is HTML based well structed, use li ul tags ad b for bold 10.ensure company name is correct and is bold and devXworks is bold too 11.output should follow json format with keys subject and body only"
 
 	// Prepare OpenAI request
 	openAIRequest := OpenAIRequest{
@@ -623,13 +677,31 @@ func (s *CacheServer) callOpenAIForEmailGeneration(companyInfo, personName strin
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer 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")
 
-	// Make the request
-	client := &http.Client{Timeout: 3*60 * time.Second}
+	// Create a context with timeout for the request
+	ctx, cancel := context.WithTimeout(context.Background(), 3*60*time.Second)
+	defer cancel()
+
+	// Add context to request
+	req = req.WithContext(ctx)
+
+	// Make the request with improved client settings
+	client := &http.Client{
+		Timeout: 3 * 60 * time.Second,
+		Transport: &http.Transport{
+			DisableKeepAlives:   false,
+			MaxIdleConns:        10,
+			MaxIdleConnsPerHost: 2,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
+
+	log.Printf("🌐 Making request to OpenAI API...")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request to OpenAI: %v", err)
 	}
 	defer resp.Body.Close()
+	log.Printf("📡 Received response from OpenAI API with status: %d", resp.StatusCode)
 
 	// Read response
 	responseBody, err := io.ReadAll(resp.Body)
@@ -704,9 +776,9 @@ func (s *CacheServer) Start(port string) {
 	srv := &http.Server{
 		Addr:         ":" + port,
 		Handler:      s.router,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  5 * time.Minute,  // Increased to handle long OpenAI requests
+		WriteTimeout: 5 * time.Minute,  // Increased to handle long OpenAI responses
+		IdleTimeout:  10 * time.Minute, // Increased idle timeout
 	}
 
 	// Start server in a goroutine
