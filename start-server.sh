@@ -2,7 +2,7 @@
 
 # Start script for Go Redis Cache Server
 
-echo "🚀 Starting Go Redis Cache Server..."
+echo "🚀 booting servers..."
 
 # Check if Redis is running
 if ! redis-cli ping > /dev/null 2>&1; then
@@ -27,10 +27,12 @@ if ! redis-cli ping > /dev/null 2>&1; then
     echo "✅ Redis server started"
 fi
 
-# Start the cache server
+# Start the go server
 if [ -f "./cache-server" ]; then
     echo "⚡ Starting cache server..."
     ./cache-server
+    echo " python server "
+    python pythonserver.py
 else
     echo "🔨 Binary not found, building first..."
     if [ -f "main.go" ]; then

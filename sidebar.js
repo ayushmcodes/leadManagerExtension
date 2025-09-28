@@ -4,7 +4,8 @@ class LeadGeneratorSidebar {
         this.elements = {};
         this.currentTabId = null;
         this.isScanning = false;
-        this.cacheServerUrl = 'http://localhost:3001'; // Go Redis Cache Server
+        this.cacheServerUrl = 'http://localhost:3001';
+        this.pythonServerUrl='http://localhost:8000'; // Go Redis Cache Server
         
         this.initializeElements();
         this.setupEventListeners();
@@ -842,14 +843,14 @@ hideError() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3*60000); // 60 seconds timeout
 
-            const response = await fetch(`${this.cacheServerUrl}/generate-email-suggestion`, {
+            const response = await fetch(`${this.pythonServerUrl}/generate-mail`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    personName: personName,
-                    companyInfo: companyInfo
+                    person_name: personName,
+                    company_name: companyInfo
                 }),
                 signal: controller.signal
             });
