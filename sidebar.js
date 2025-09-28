@@ -580,6 +580,10 @@ hideError() {
             
             if (result.success) {
                 console.log(`✅ Cached verification result for ${email} in Go Redis server`);
+                // Auto-load saved email if it exists
+                setTimeout(() => {
+                    this.loadSavedEmailIfExists();
+                }, 500);
             } else {
                 console.error('❌ Failed to cache verification result:', result.error);
             }
@@ -939,23 +943,151 @@ hideError() {
     }
 
     async saveEmail(){
-        body= this.elements.generatedSubject.value
-        subject= this.elements.generatedBody.value
-        email=this.verifiedEmail 
+        // Fix the variable assignments - they were backwards
+        const subject = this.elements.generatedSubject.value;
+        const body = this.elements.generatedBody.value;// Use HTML content or raw fallback
+        const email = this.verifiedEmail;
 
-        const saveEmailRequestBody={
-            subject:subject,
-            body:body
+        // Validate required data
+        if (!email) {
+            this.showError('No verified email found. Please verify an email first.');
+            return;
         }
 
-        const response = await fetch(`${this.cacheServerUrl}/cache/savemail/${encodeURIComponent(email.toLowerCase())}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(saveEmailRequestBody)
-        });
+        if (!subject || !body) {
+            this.showError('Please generate an email first before saving.');
+            return;
+        }
 
+        // Set loading state
+        const saveButton = this.elements.saveEmailButton;
+        const originalButtonText = saveButton.innerHTML;
+        saveButton.disabled = true;
+        saveButton.innerHTML = `
+            <svg class="button-icon loading-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Saving...
+        `;
+
+        try {
+            const saveEmailRequestBody = {
+                subject: subject,
+                body: body,
+                timestamp: Date.now(),
+                personName: this.elements.nameInput.value.trim(),
+                companyName: this.elements.companyInput.value.trim()
+            };
+
+            console.log('💾 Saving email for:', email, saveEmailRequestBody);
+
+            const response = await fetch(`${this.cacheServerUrl}/cache/savemail/${encodeURIComponent(email.toLowerCase())}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(saveEmailRequestBody)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                // Show success feedback
+                saveButton.innerHTML = `
+                    <svg class="button-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Saved!
+                `;
+                saveButton.style.backgroundColor = '#28a745';
+                this.hideError();
+                
+                console.log('✅ Email saved successfully for:', email);
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    saveButton.innerHTML = originalButtonText;
+                    saveButton.style.backgroundColor = '';
+                    saveButton.disabled = false;
+                }, 2000);
+            } else {
+                throw new Error(result.error || 'Failed to save email');
+            }
+
+        } catch (error) {
+            console.error('❌ Error saving email:', error);
+            this.showError(`Failed to save email: ${error.message}`);
+            
+            // Reset button
+            saveButton.innerHTML = originalButtonText;
+            saveButton.disabled = false;
+        }
+    }
+
+    async getSavedEmail(email) {
+        try {
+            console.log('📧 Retrieving saved email for:', email);
+            
+            const response = await fetch(`${this.cacheServerUrl}/cache/savemail/${encodeURIComponent(email.toLowerCase())}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.success && result.cached && result.data) {
+                console.log('✅ Found saved email for:', email);
+                return result.data;
+            } else {
+                console.log('📭 No saved email found for:', email);
+                return null;
+            }
+
+        } catch (error) {
+            console.error('❌ Error retrieving saved email:', error);
+            return null;
+        }
+    }
+
+    async loadSavedEmailIfExists() {
+        if (!this.verifiedEmail) return;
+
+        const savedEmail = await this.getSavedEmail(this.verifiedEmail);
+        if (savedEmail && savedEmail.subject && savedEmail.body) {
+            // Populate the email generation results with saved content
+            this.displayGeneratedEmail(savedEmail.subject, savedEmail.body);
+            
+            // Show a notification that this is saved content
+            const notification = document.createElement('div');
+            notification.className = 'saved-email-notification';
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <span class="notification-icon">💾</span>
+                    <span class="notification-text">Loaded saved email content</span>
+                    <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+            `;
+            
+            // Insert notification before the generation results
+            this.elements.generationResults.insertBefore(notification, this.elements.generationResults.firstChild);
+            
+            // Auto-remove notification after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
     }
 
     // Form data utility methods

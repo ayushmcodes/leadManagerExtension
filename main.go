@@ -34,7 +34,7 @@ type CachedData struct {
 
 type CachedEmailData struct {
 	Email     string                 `json:"email"`
-	EmailData  map[string]interface{} `json:"emailData"`
+	EmailData map[string]interface{} `json:"emailData"`
 	Timestamp int64                  `json:"timestamp"`
 }
 
@@ -126,9 +126,9 @@ type EmailContent struct {
 }
 
 const (
-	CACHE_KEY_PREFIX = "lead_"
+	CACHE_KEY_PREFIX       = "lead_"
 	CACHE_KEY_PREFIX_EMAIL = "email_"
-	SERVER_VERSION   = "1.0.0"
+	SERVER_VERSION         = "1.0.0"
 )
 
 func NewCacheServer() *CacheServer {
@@ -226,6 +226,7 @@ func (s *CacheServer) setupRoutes() {
 	s.router.GET("/cache/:email", s.getCachedVerification)
 	s.router.POST("/cache/:email", s.setCachedVerification)
 	s.router.POST("/cache/savemail/:email", s.setCachedEmail)
+	s.router.GET("/cache/savemail/:email", s.getCachedEmail)
 	s.router.DELETE("/cache/:email", s.deleteCachedVerification)
 
 	// Statistics and management
@@ -393,6 +394,18 @@ func (s *CacheServer) setCachedEmail(c *gin.Context) {
 		return
 	}
 
+	// Validate required fields
+	subject, hasSubject := emailData["subject"].(string)
+	body, hasBody := emailData["body"].(string)
+
+	if !hasSubject || !hasBody || subject == "" || body == "" {
+		c.JSON(http.StatusBadRequest, CacheResponse{
+			Success: false,
+			Error:   "Subject and body are required fields",
+		})
+		return
+	}
+
 	cacheKey := CACHE_KEY_PREFIX_EMAIL + email
 	cacheData := CachedEmailData{
 		Email:     email,
@@ -402,28 +415,85 @@ func (s *CacheServer) setCachedEmail(c *gin.Context) {
 
 	dataJSON, err := json.Marshal(cacheData)
 	if err != nil {
-		log.Printf("Error marshaling cache data for %s: %v", email, err)
+		log.Printf("Error marshaling email cache data for %s: %v", email, err)
 		c.JSON(http.StatusInternalServerError, CacheResponse{
 			Success: false,
-			Error:   "Failed to serialize cache data",
+			Error:   "Failed to serialize email cache data",
 		})
 		return
 	}
 
 	// Set with no expiration (permanent cache)
 	if err := s.redis.Set(s.ctx, cacheKey, dataJSON, 0).Err(); err != nil {
-		log.Printf("Error saving to cache for %s: %v", email, err)
+		log.Printf("Error saving email to cache for %s: %v", email, err)
 		c.JSON(http.StatusInternalServerError, CacheResponse{
 			Success: false,
-			Error:   "Failed to save to cache",
+			Error:   "Failed to save email to cache",
 		})
 		return
 	}
 
-	log.Printf("✅ Cached verification result for %s", email)
+	log.Printf("✅ Cached email content for %s - Subject: %s", email, subject)
 	c.JSON(http.StatusOK, CacheResponse{
 		Success: true,
-		Message: "Cached successfully",
+		Message: "Email cached successfully",
+	})
+}
+
+func (s *CacheServer) getCachedEmail(c *gin.Context) {
+	email := strings.ToLower(strings.TrimSpace(c.Param("email")))
+	if email == "" {
+		c.JSON(http.StatusBadRequest, CacheResponse{
+			Success: false,
+			Error:   "Email parameter is required",
+		})
+		return
+	}
+
+	cacheKey := CACHE_KEY_PREFIX_EMAIL + email
+
+	cached, err := s.redis.Get(s.ctx, cacheKey).Result()
+	if err != nil {
+		if err == redis.Nil {
+			log.Printf("Email cache miss for %s", email)
+			c.JSON(http.StatusOK, CacheResponse{
+				Success: true,
+				Data:    nil,
+				Cached:  false,
+				Message: "No saved email found",
+			})
+			return
+		}
+
+		log.Printf("Error getting email from cache: %v", err)
+		c.JSON(http.StatusInternalServerError, CacheResponse{
+			Success: false,
+			Error:   "Failed to read email from cache",
+		})
+		return
+	}
+
+	var cachedEmailData CachedEmailData
+	if err := json.Unmarshal([]byte(cached), &cachedEmailData); err != nil {
+		log.Printf("Error unmarshaling cached email data for %s: %v", email, err)
+		c.JSON(http.StatusInternalServerError, CacheResponse{
+			Success: false,
+			Error:   "Failed to parse cached email data",
+		})
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	cacheAge := now - cachedEmailData.Timestamp
+
+	log.Printf("Email cache hit for %s (cached %d minutes ago)", email, cacheAge/1000/60)
+
+	c.JSON(http.StatusOK, CacheResponse{
+		Success:  true,
+		Data:     cachedEmailData.EmailData,
+		Cached:   true,
+		CacheAge: cacheAge,
+		Message:  "Email retrieved successfully",
 	})
 }
 
@@ -828,6 +898,8 @@ func (s *CacheServer) Start(port string) {
 	log.Println("   GET    /ping                      - Simple ping endpoint")
 	log.Println("   GET    /cache/:email              - Get cached verification result")
 	log.Println("   POST   /cache/:email              - Cache verification result")
+	log.Println("   POST   /cache/savemail/:email     - Save email content for specific email")
+	log.Println("   GET    /cache/savemail/:email     - Retrieve saved email content")
 	log.Println("   DELETE /cache/:email              - Remove specific cached verification")
 	log.Println("   GET    /stats                     - Get cache statistics")
 	log.Println("   DELETE /cache                     - Clear all cache entries")
