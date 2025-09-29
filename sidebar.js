@@ -1,4 +1,3 @@
-// LinkedIn Lead Generator - Sidebar Script
 class LeadGeneratorSidebar {
     constructor() {
         this.elements = {};
@@ -28,7 +27,6 @@ class LeadGeneratorSidebar {
             emailDomainInput: document.getElementById('emailDomainInput'),
             listNameInput: document.getElementById('listNameInput'),
             customEmailInput: document.getElementById('customEmailInput'),
-            saveEmailButton: document.getElementById('saveEmailButton'),
             emailSuggestions: document.getElementById('emailSuggestions'),
             emailList: document.getElementById('emailList'),
             leadsCounter: document.getElementById('leadsCounter'),
@@ -47,7 +45,8 @@ class LeadGeneratorSidebar {
             toggleViewButton: document.getElementById('toggleViewButton'),
             copySubjectButton: document.getElementById('copySubjectButton'),
             copyBodyButton: document.getElementById('copyBodyButton'),
-            saveEmailButton: document.getElementById('saveEmailButton')
+            saveEmailButton: document.getElementById('saveEmailButton'),
+            saveGeneratedEmailButton: document.getElementById('saveGeneratedEmailButton')
         };
     }
 
@@ -78,8 +77,9 @@ class LeadGeneratorSidebar {
             this.refreshLeadsCount();
         });
 
-        // Listen for save custom email button
+        // Listen for save custom email button (in custom email section)
         this.elements.saveEmailButton.addEventListener('click', () => {
+            console.log('🔘 Custom email save button clicked');
             this.saveCustomEmail();
         });
 
@@ -97,7 +97,9 @@ class LeadGeneratorSidebar {
             this.copyEmailBody();
         });
 
-        this.elements.saveEmailButton.addEventListener('click', () => {
+        // Listen for save generated email button (in email generation results)
+        this.elements.saveGeneratedEmailButton.addEventListener('click', () => {
+            console.log('🔘 Generated email save button clicked');
             this.saveEmail();
         });
 
@@ -943,10 +945,14 @@ hideError() {
     }
 
     async saveEmail(){
+        console.log('async saveEmail')
         // Fix the variable assignments - they were backwards
         const subject = this.elements.generatedSubject.value;
-        const body = this.elements.generatedBody.value;// Use HTML content or raw fallback
+        console.log('subject', subject);
+        const body = this.rawEmailBody || this.elements.generatedBodyRaw.value; // Use raw HTML content
+        console.log('body', body);
         const email = this.verifiedEmail;
+        console.log('email', email);
 
         // Validate required data
         if (!email) {
@@ -959,8 +965,9 @@ hideError() {
             return;
         }
 
+        console.log('starting save1')
         // Set loading state
-        const saveButton = this.elements.saveEmailButton;
+        const saveButton = this.elements.saveGeneratedEmailButton;
         const originalButtonText = saveButton.innerHTML;
         saveButton.disabled = true;
         saveButton.innerHTML = `
@@ -970,13 +977,12 @@ hideError() {
             Saving...
         `;
 
+        console.log('starting save2')
         try {
             const saveEmailRequestBody = {
                 subject: subject,
                 body: body,
                 timestamp: Date.now(),
-                personName: this.elements.nameInput.value.trim(),
-                companyName: this.elements.companyInput.value.trim()
             };
 
             console.log('💾 Saving email for:', email, saveEmailRequestBody);
@@ -1019,6 +1025,7 @@ hideError() {
             }
 
         } catch (error) {
+            console.log('starting save3')
             console.error('❌ Error saving email:', error);
             this.showError(`Failed to save email: ${error.message}`);
             
@@ -1377,4 +1384,3 @@ function initializeSidebar() {
         refreshLeadsCount: () => leadGeneratorSidebar.refreshLeadsCount()
     };
 }
-
