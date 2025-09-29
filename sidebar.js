@@ -405,6 +405,7 @@ hideError() {
                 const result={
                     result: cachedResult.emailStatus
                 }
+                this.verifiedEmail=email;
                 this.updateVerificationStatus(statusIndicator, verifyButton, result, true);
                 return;
             }
