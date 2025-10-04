@@ -84,7 +84,7 @@ async def generate_mail(request: MailRequest):
             "3. Briefly explain how DevXworks can help them solve a problem and how their business might improve(quantify the benifits). "
             "when mentioning about devXworks start with At DevXworks "
             "4.ensure mail is well structed using bullet points and important keywords are in bold "
-            "5.ensure word count is between 120 to 150. "
+            "5.ensure word count is under 100."
             f"6.start with Hi {request.person_name} "
             "7.end with a low fricting CTA and add a clickable Calendly link using "
             "<a href='https://calendly.com/ayush-devxworks/intro-call-with-ayush-devxworks'>schedule a call</a> "

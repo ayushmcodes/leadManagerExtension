@@ -11,6 +11,7 @@ class LeadGeneratorSidebar {
         this.checkCurrentTab();
         this.initializeCache();
         this.initializeLeadsCounter();
+        this.resetEmailFields();
     }
 
     initializeElements() {
@@ -826,7 +827,9 @@ hideError() {
         const personName = this.elements.nameInput.value.trim().split(" ")[0];
         const companyInfo = this.elements.companyInfoInput.value.trim();
 
-        // Validate required fields
+        // Clear previous content and validate required fields
+        this.resetEmailFields();
+        
         if (!companyInfo) {
             this.showError('Please enter companyInfo');
             return;
@@ -910,11 +913,14 @@ hideError() {
         
         // Render HTML content in the div
         this.elements.generatedBody.innerHTML = body;
+        // Remove placeholder styling
+        this.elements.generatedBody.style.color = '';
+        this.elements.generatedBody.style.fontStyle = '';
         
         // Store raw content in hidden textarea
         this.elements.generatedBodyRaw.value = body;
 
-        // Show the results section
+        // Show the results section (already visible by default)
         this.elements.generationResults.style.display = 'block';
 
         // Scroll to results
@@ -924,7 +930,29 @@ hideError() {
         });
     }
 
+    resetEmailFields() {
+        // Reset subject field
+        this.elements.generatedSubject.value = '';
+        
+        // Reset body field with placeholder text
+        this.elements.generatedBody.innerHTML = 'Email body will appear here after generation';
+        this.elements.generatedBody.style.color = 'var(--muted-foreground)';
+        this.elements.generatedBody.style.fontStyle = 'italic';
+        
+        // Reset raw textarea
+        this.elements.generatedBodyRaw.value = '';
+    }
+
     toggleEmailBodyView() {
+        // Sync content before switching views
+        if (this.isHtmlView) {
+            // Currently in HTML view, sync to raw view before switching
+            this.elements.generatedBodyRaw.value = this.elements.generatedBody.innerHTML;
+        } else {
+            // Currently in raw view, sync to HTML view before switching
+            this.elements.generatedBody.innerHTML = this.elements.generatedBodyRaw.value;
+        }
+        
         this.isHtmlView = !this.isHtmlView;
         
         if (this.isHtmlView) {
@@ -941,8 +969,14 @@ hideError() {
     }
 
     copyEmailBody() {
-        // Always copy the raw HTML content
-        this.copyToClipboard(this.rawEmailBody, this.elements.copyBodyButton);
+        // Get the current content from the active view
+        let content;
+        if (this.isHtmlView) {
+            content = this.elements.generatedBody.innerHTML;
+        } else {
+            content = this.elements.generatedBodyRaw.value;
+        }
+        this.copyToClipboard(content, this.elements.copyBodyButton);
     }
 
     async saveEmail(){
@@ -950,7 +984,17 @@ hideError() {
         // Fix the variable assignments - they were backwards
         const subject = this.elements.generatedSubject.value;
         console.log('subject', subject);
-        const body = this.rawEmailBody || this.elements.generatedBodyRaw.value; // Use raw HTML content
+        
+        // Get the body content from the currently visible view
+        let body;
+        if (this.isHtmlView) {
+            // If HTML view is active, get content from the contenteditable div
+            body = this.elements.generatedBody.innerHTML;
+        } else {
+            // If raw view is active, get content from the textarea
+            body = this.elements.generatedBodyRaw.value;
+        }
+        
         console.log('body', body);
         const email = this.verifiedEmail;
         console.log('email', email);
