@@ -86,7 +86,7 @@ async def generate_mail(request: MailRequest):
             "4.ensure mail is well structed using bullet points and important keywords are in bold "
             "5.ensure word count is under 100."
             f"6.start with Hi {request.person_name} "
-            "7.end with a low fricting CTA and add a clickable Calendly link using "
+            "7.end with this Would you be open to a brief chat to explore this further? If so, you can pick a time that works best add a clickable Calendly link using "
             "<a href='https://calendly.com/ayush-devxworks/intro-call-with-ayush-devxworks'>schedule a call</a> "
             "8.create a eye catcing subject, 5-8 words is ideal, subject should state how devxworks can help the company.dont format subject"
             "9. ensure email is well structured using HTML tags like <b>, <br>, <ul>, <li>. "
@@ -102,6 +102,7 @@ async def generate_mail(request: MailRequest):
         email = client.models.generate_content(
             model="gemini-2.5-flash-lite",
             contents=prompt,
+            config=genai.types.GenerateContentConfig(temperature=0)
         )
 
         parsed_email = parse_model_response(email.text)
